@@ -81,7 +81,7 @@ const ContactButtons = ({
           bg-[#25D366] hover:bg-[#20BD5C]
           text-white font-medium rounded-xl
           transition-all duration-200
-          shadow-lg shadow-[#25D366]/20 hover:shadow-[#25D366]/40
+          shadow-lg
           flex-1
         `}
       >
@@ -100,11 +100,11 @@ const ContactButtons = ({
         rel="noopener noreferrer"
         className={`
           flex items-center justify-center ${sizeClasses[size]}
-          bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737]
+          bg-[#E1306C]
           hover:opacity-90
           text-white font-medium rounded-xl
           transition-all duration-200
-          shadow-lg shadow-[#FD1D1D]/20 hover:shadow-[#FD1D1D]/40
+          shadow-lg
           flex-1
         `}
       >

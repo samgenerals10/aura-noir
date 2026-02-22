@@ -13,28 +13,18 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  MessageCircle, X, Send, Image as ImageIcon, Package, Loader2, Check, CheckCheck,
-  MoreVertical, ExternalLink, Smile, Sticker as StickerIcon, Paperclip, Copy,
-  Edit3, Trash2, Share2, User as UserIcon, File, CheckCircle,
+  MessageCircle, X, Send, Image as ImageIcon, Loader2, CheckCheck,
+  MoreVertical, Smile, Paperclip, User as UserIcon, Maximize2,
+  File, FileText, Link, 
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { useStore } from '@/store/useStore';
 import {
   getOrCreateConversation, sendMessage, listenToMessages, markMessagesAsRead,
-  updateTypingStatus, deleteMessage, editMessage, forwardMessage,
+  updateTypingStatus,
 } from '@/lib/messaging';
-import { buildWhatsAppURL, buildInstagramURL } from '@/config/adminContact';
+import { ADMIN_CONTACT } from '@/config/adminContact';
 import { toast } from 'sonner';
-
-// Sticker packs (you can add more URLs)
-const STICKERS = [
-  'https://em-content.zobj.net/thumbs/120/google/350/thumbs-up_1f44d.png',
-  'https://em-content.zobj.net/thumbs/120/google/350/red-heart_2764-fe0f.png',
-  'https://em-content.zobj.net/thumbs/120/google/350/fire_1f525.png',
-  'https://em-content.zobj.net/thumbs/120/google/350/party-popper_1f389.png',
-  'https://em-content.zobj.net/thumbs/120/google/350/clapping-hands_1f44f.png',
-  'https://em-content.zobj.net/thumbs/120/google/350/ok-hand_1f44c.png',
-];
 
 const ChatBubble = () => {
   const { state } = useStore();
@@ -42,10 +32,7 @@ const ChatBubble = () => {
   // UI state
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showProductPicker, setShowProductPicker] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showFilePicker, setShowFilePicker] = useState(false);
   
   // Chat state
@@ -55,19 +42,29 @@ const ChatBubble = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
-  const [showImageInput, setShowImageInput] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [adminTyping, setAdminTyping] = useState(false);
   
-  // Message actions
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [editingMessageId, setEditingMessageId] = useState(null);
-  const [editText, setEditText] = useState('');
+  // Resizability & Layout state
+  const [dimensions, setDimensions] = useState({ width: 450, height: 450 });
+  const [position, setPosition] = useState({ x: 24, y: 24 });
+  const [sidebarWidth, setSidebarWidth] = useState(200);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  
+  // Interaction state
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeType, setResizeType] = useState(null); // 'top', 'left', 'top-left'
   
   // Refs
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const chatRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   
@@ -118,6 +115,91 @@ const ChatBubble = () => {
     return () => unsubscribe();
   }, [conversationId, state.user?.id]);
   
+  // ── INTERACTIVE CONTROLS ──────────────────────────────────────────────────
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (isDragging) {
+        const newX = window.innerWidth - e.clientX - dragOffset.x;
+        const newY = window.innerHeight - e.clientY - dragOffset.y;
+        setPosition({ 
+          x: Math.max(0, Math.min(window.innerWidth - dimensions.width, newX)), 
+          y: Math.max(0, Math.min(window.innerHeight - (isMinimized ? 64 : dimensions.height), newY)) 
+        });
+      } else if (isResizing) {
+        const deltaX = (window.innerWidth - e.clientX) - position.x;
+        const deltaY = (window.innerHeight - e.clientY) - position.y;
+
+        let newWidth = dimensions.width;
+        let newHeight = dimensions.height;
+
+        if (resizeType.includes('left')) {
+          newWidth = deltaX;
+        }
+        if (resizeType.includes('top')) {
+          newHeight = deltaY;
+        }
+
+        setDimensions({
+          width: Math.max(380, Math.min(800, newWidth)),
+          height: Math.max(400, Math.min(window.innerHeight - 100, newHeight))
+        });
+      } else if (isResizingSidebar) {
+        const rect = chatRef.current.getBoundingClientRect();
+        const newSidebarWidth = e.clientX - rect.left;
+        setSidebarWidth(Math.max(150, Math.min(dimensions.width / 2, newSidebarWidth)));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsResizing(false);
+      setIsResizingSidebar(false);
+    };
+
+    if (isDragging || isResizing || isResizingSidebar) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, isResizingSidebar, dragOffset, dimensions, position, resizeType]);
+
+  const startDragging = (e) => {
+    if (isMaximized || isMinimized) return;
+    setIsDragging(true);
+    setDragOffset({
+      x: window.innerWidth - e.clientX - position.x,
+      y: window.innerHeight - e.clientY - position.y
+    });
+  };
+
+  const startResizing = (e, type) => {
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeType(type);
+  };
+  
+  // Cleanup on Close
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMinimized(false);
+      setIsMaximized(false);
+      const timer = setTimeout(() => {
+        setMessages([]);
+        setConversationId(null);
+        setMessageText('');
+        setImageUrl('');
+        setFileUrl('');
+        setFileName('');
+        setShowFilePicker(false);
+        setShowUrlInput(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   // Handle typing
   const handleTyping = () => {
     if (!conversationId || !state.user) return;
@@ -134,7 +216,7 @@ const ChatBubble = () => {
   
   // Send message
   const handleSendMessage = async () => {
-    if (!messageText.trim() && !imageUrl.trim() && !fileUrl.trim()) return;
+    if (!messageText.trim() && !imageUrl && !fileUrl) return;
     if (!conversationId || !state.user) {
       toast.error('Please sign in to send messages');
       return;
@@ -146,9 +228,9 @@ const ChatBubble = () => {
       const message = {
         type: fileUrl ? 'file' : imageUrl ? 'image' : 'text',
         text: messageText.trim(),
-        imageUrl: imageUrl.trim(),
-        fileUrl: fileUrl.trim(),
-        fileName: fileName.trim(),
+        imageUrl: imageUrl || '',
+        fileUrl: fileUrl || '',
+        fileName: fileName || '',
         senderId: state.user.id,
         senderName: state.user.name,
       };
@@ -158,177 +240,38 @@ const ChatBubble = () => {
       setImageUrl('');
       setFileUrl('');
       setFileName('');
-      setShowImageInput(false);
       setShowFilePicker(false);
+      setShowUrlInput(false);
       setIsTyping(false);
       updateTypingStatus(conversationId, state.user.id, false);
-    } catch (err) {
-      console.error('Send message error:', err);
+    } catch {
       toast.error('Failed to send message');
     } finally {
       setIsSending(false);
     }
   };
-  
-  // Send product
-  const handleSendProduct = async (product) => {
-    if (!conversationId || !state.user) return;
-    setIsSending(true);
-    setShowProductPicker(false);
-    
-    try {
-      await sendMessage(conversationId, {
-        type: 'product',
-        text: `Check out: ${product.name}`,
-        productId: product.id,
-        senderId: state.user.id,
-        senderName: state.user.name,
-      });
-      toast.success('Product shared!');
-    } catch (err) {
-      toast.error('Failed to share product');
-    } finally {
-      setIsSending(false);
-    }
-  };
-  
-  // Send sticker
-  const handleSendSticker = async (stickerUrl) => {
-    if (!conversationId || !state.user) return;
-    setIsSending(true);
-    setShowStickerPicker(false);
-    
-    try {
-      await sendMessage(conversationId, {
-        type: 'sticker',
-        imageUrl: stickerUrl,
-        senderId: state.user.id,
-        senderName: state.user.name,
-      });
-    } catch (err) {
-      toast.error('Failed to send sticker');
-    } finally {
-      setIsSending(false);
-    }
-  };
-  
-  // Send contact
-  const handleSendContact = async () => {
-    if (!conversationId || !state.user) return;
-    setIsSending(true);
-    
-    try {
-      await sendMessage(conversationId, {
-        type: 'contact',
-        text: `Contact: ${state.user.name}\nEmail: ${state.user.email}`,
-        contactName: state.user.name,
-        contactEmail: state.user.email,
-        senderId: state.user.id,
-        senderName: state.user.name,
-      });
-      toast.success('Contact shared!');
-    } catch (err) {
-      toast.error('Failed to share contact');
-    } finally {
-      setIsSending(false);
-    }
-  };
-  
-  // File upload handler
-  const handleFileSelect = async (e) => {
+
+  // Handle local file selection
+  const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Check file size (max 5MB for now)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 5MB');
-      return;
-    }
-    
-    setFileName(file.name);
-    
-    // Check if Firebase Storage is available (requires Blaze plan)
-    // For now, we'll convert to base64 for small images or show URL input for large files
-    
-    if (file.type.startsWith('image/') && file.size < 1024 * 1024) {
-      // Small image - convert to base64 and send immediately
+    if (file) {
+      setFileName(file.name);
+      // Simulate file upload with data URL for demo
       const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target.result;
-        setImageUrl(base64);
-        setShowImageInput(false);
-        toast.success('Image ready to send');
-      };
+      reader.onload = (event) => setFileUrl(event.target.result);
       reader.readAsDataURL(file);
-    } else {
-      // Large file or document - ask for URL or show upload instructions
-      toast.info('Please upload to a file hosting service and paste the URL, or upgrade to Blaze plan for direct uploads');
-      setShowFilePicker(true);
+      toast.success('File attached');
     }
   };
-  
-  // Image upload handler
-  const handleImageSelect = async (e) => {
+
+  const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => setImageUrl(event.target.result);
+      reader.readAsDataURL(file);
+      toast.success('Image attached');
     }
-    
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image too large. Maximum size is 5MB');
-      return;
-    }
-    
-    // Convert to base64
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImageUrl(e.target.result);
-      toast.success('Image ready to send');
-    };
-    reader.readAsDataURL(file);
-  };
-  
-  // Copy message
-  const handleCopyMessage = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Message copied!');
-    setSelectedMessage(null);
-  };
-  
-  // Delete message
-  const handleDeleteMessage = async (messageId) => {
-    if (!conversationId) return;
-    try {
-      await deleteMessage(conversationId, messageId);
-      toast.success('Message deleted');
-      setSelectedMessage(null);
-    } catch (err) {
-      toast.error('Failed to delete message');
-    }
-  };
-  
-  // Edit message
-  const handleEditMessage = async (messageId) => {
-    if (!editText.trim()) return;
-    try {
-      await editMessage(conversationId, messageId, editText.trim());
-      toast.success('Message updated');
-      setEditingMessageId(null);
-      setEditText('');
-    } catch (err) {
-      toast.error('Failed to edit message');
-    }
-  };
-  
-  // Forward message
-  const handleForwardMessage = async (messageId) => {
-    // In a real app, you'd show a conversation picker
-    // For now, just show a toast
-    toast.info('Forward feature - select a conversation to forward to');
-    setSelectedMessage(null);
   };
   
   // Emoji select
@@ -339,174 +282,75 @@ const ChatBubble = () => {
   
   // Render message
   const renderMessage = (msg) => {
-    if (msg.deleted) {
-      return (
-        <div key={msg.id} className="flex justify-center mb-3">
-          <p className="text-xs text-white/30 italic">Message deleted</p>
-        </div>
-      );
-    }
-    
     const isOwn = msg.senderId === state.user?.id;
     const product = msg.productId ? state.products.find(p => p.id === msg.productId) : null;
-    const isEditing = editingMessageId === msg.id;
     
     return (
-      <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3 group`}>
-        <div className={`max-w-[75%] ${isOwn ? 'order-2' : 'order-1'} relative`}>
+      <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2 group animate-in slide-in-from-bottom-1 duration-200`}>
+        <div className={`max-w-[85%] ${isOwn ? 'order-2' : 'order-1'} relative`}>
           
-          {!isOwn && <p className="text-xs text-white/40 mb-1 px-1">{msg.senderName}</p>}
-          
-          {/* Message actions (visible on hover) */}
-          {isOwn && !isEditing && (
-            <div className="absolute -left-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => setSelectedMessage(selectedMessage === msg.id ? null : msg.id)}
-                className="p-1 rounded bg-white/10 hover:bg-white/20"
-              >
-                <MoreVertical className="w-4 h-4 text-white/70" />
-              </button>
-              
-              {selectedMessage === msg.id && (
-                <div className="absolute left-0 top-full mt-1 bg-black/95 border border-white/20 rounded-lg p-1 min-w-[120px] z-10">
-                  {msg.text && (
-                    <>
-                      <button
-                        onClick={() => handleCopyMessage(msg.text)}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
-                      <button
-                        onClick={() => { setEditingMessageId(msg.id); setEditText(msg.text); setSelectedMessage(null); }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        <span>Edit</span>
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => handleForwardMessage(msg.id)}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded"
-                  >
-                    <Share2 className="w-3 h-3" />
-                    <span>Forward</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMessage(msg.id)}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Edit mode */}
-          {isEditing ? (
-            <div className="bg-white/10 rounded-2xl p-3 border border-white/20">
-              <input
-                type="text"
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                className="w-full bg-transparent border-none outline-none text-white text-sm mb-2"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEditMessage(msg.id)}
-                  className="px-3 py-1 bg-pink-500 rounded text-white text-xs"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => { setEditingMessageId(null); setEditText(''); }}
-                  className="px-3 py-1 bg-white/10 rounded text-white text-xs"
-                >
-                  Cancel
-                </button>
+          {/* WhatsApp Style Bubble */}
+          <div className={`relative px-3 py-2 rounded-2xl shadow-sm ${
+            isOwn 
+              ? 'bg-gold/20 text-white rounded-tr-none border border-gold/10' 
+              : 'bg-white/10 text-white rounded-tl-none border border-white/5'
+          }`}>
+            {/* Sender Name (Only for group/admin) */}
+            {!isOwn && (
+              <p className="text-[10px] font-bold text-gold/80 mb-0.5 uppercase tracking-tighter">
+                {msg.senderName}
+              </p>
+            )}
+
+            {/* Content Rendering */}
+            {msg.type === 'image' && msg.imageUrl && (
+              <div className="mb-1.5 overflow-hidden rounded-xl border border-white/10 group-hover:border-gold/30 transition-colors">
+                <img src={msg.imageUrl} alt="Shared" className="max-w-full hover:scale-105 transition-transform duration-500" />
               </div>
-            </div>
-          ) : (
-            <div className={`rounded-2xl px-4 py-2.5 ${
-              isOwn ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white'
-                   : 'bg-white/10 text-white border border-white/10'
-            }`}>
-              
-              {/* Forwarded indicator */}
-              {msg.forwarded && (
-                <p className="text-xs opacity-60 mb-1 flex items-center gap-1">
-                  <Share2 className="w-3 h-3" />
-                  Forwarded from {msg.originalSender}
-                </p>
-              )}
-              
-              {/* Image */}
-              {msg.type === 'image' && msg.imageUrl && (
-                <img src={msg.imageUrl} alt="Shared" className="rounded-lg mb-2 max-w-full" />
-              )}
-              
-              {/* Sticker */}
-              {msg.type === 'sticker' && msg.imageUrl && (
-                <img src={msg.imageUrl} alt="Sticker" className="w-32 h-32 object-contain" />
-              )}
-              
-              {/* File */}
-              {msg.type === 'file' && msg.fileUrl && (
-                <a
-                  href={msg.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 bg-black/20 rounded-lg p-3 mb-2 hover:bg-black/30"
-                >
-                  <File className="w-5 h-5" />
-                  <span className="text-sm">{msg.fileName || 'Download file'}</span>
-                </a>
-              )}
-              
-              {/* Product */}
-              {msg.type === 'product' && product && (
-                <div className="bg-black/20 rounded-lg p-3 mb-2 flex gap-3">
-                  <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded-lg" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{product.name}</p>
-                    <p className="text-xs opacity-70">${product.price.toFixed(2)}</p>
-                  </div>
+            )}
+            
+            {msg.type === 'file' && msg.fileUrl && (
+              <div className="flex items-center gap-3 bg-black/40 rounded-xl p-3 mb-1.5 border border-white/5 hover:bg-black/60 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-gold" />
                 </div>
-              )}
-              
-              {/* Contact */}
-              {msg.type === 'contact' && (
-                <div className="bg-black/20 rounded-lg p-3 mb-2 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                    <UserIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{msg.contactName}</p>
-                    <p className="text-xs opacity-70">{msg.contactEmail}</p>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold truncate text-white">{msg.fileName || 'document.pdf'}</p>
+                  <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gold hover:underline">Download</a>
                 </div>
-              )}
-              
-              {/* Text */}
-              {msg.text && <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>}
-              
-              {/* Edited indicator */}
-              {msg.edited && <p className="text-xs opacity-50 mt-1">edited</p>}
-              
-              {/* Timestamp + read receipt */}
-              <div className="flex items-center justify-end gap-1 mt-1">
-                <span className="text-xs opacity-60">
-                  {msg.timestamp?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                {isOwn && (msg.read ? <CheckCheck className="w-3 h-3 opacity-60" /> : <Check className="w-3 h-3 opacity-60" />)}
               </div>
+            )}
+            
+            {msg.type === 'sticker' && msg.imageUrl && (
+              <img src={msg.imageUrl} alt="Sticker" className="w-28 h-28 object-contain" />
+            )}
+            
+            {msg.type === 'product' && product && (
+              <div className="bg-black/40 rounded-xl p-2 mb-1.5 flex gap-2 border border-white/10">
+                <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold truncate text-white">{product.name}</p>
+                  <p className="text-[10px] text-gold">${product.price.toFixed(2)}</p>
+                </div>
+              </div>
+            )}
+
+            {msg.text && (
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words pr-12">
+                {msg.text}
+              </p>
+            )}
+
+            {/* Meta Info (Inside Bubble) */}
+            <div className="absolute bottom-1 right-2 flex items-center gap-1">
+              <span className="text-[9px] text-white/40 font-medium">
+                {msg.timestamp?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}
+              </span>
+              {isOwn && (
+                <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-gold' : 'text-white/30'}`} />
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -520,257 +364,266 @@ const ChatBubble = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-pink-500 to-red-500 shadow-lg shadow-pink-500/50 flex items-center justify-center text-white hover:scale-110 transition-transform"
+          className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-full bg-black shadow-[0_0_20px_rgba(212,175,55,0.3)] flex items-center justify-center text-white hover:scale-110 transition-transform border border-gold/30 group"
         >
-          <MessageCircle className="w-6 h-6" />
+          <div className="absolute inset-0 rounded-full bg-gold/10 animate-ping group-hover:hidden" />
+          <MessageCircle className="w-6 h-6 relative z-10" />
         </button>
       )}
       
       {/* Chat window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-40 w-full max-w-sm h-[600px] bg-gradient-to-b from-gray-900 to-black border border-white/20 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-          
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-pink-500/10 to-red-500/10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-red-500 flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">Support Chat</h3>
-                <p className="text-xs text-white/50">{adminTyping ? 'Typing...' : 'We reply instantly'}</p>
-              </div>
-            </div>
+        <div 
+          ref={chatRef}
+          style={{ 
+            width: isMaximized ? 'calc(100vw - 48px)' : `${dimensions.width}px`,
+            minWidth: '380px',
+            height: isMinimized ? '64px' : isMaximized ? 'calc(100vh - 104px)' : `${dimensions.height}px`,
+            bottom: isMaximized ? '24px' : `${position.y}px`,
+            right: isMaximized ? '24px' : `${position.x}px`,
+          }}
+          className={`fixed z-[100] bg-matte-black-pure border border-white/5 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ease-out animate-in fade-in zoom-in slide-in-from-bottom-4 ${isDragging || isResizing ? 'transition-none cursor-grabbing' : ''}`}
+        >
+          {/* Resize Handles */}
+          {!isMaximized && !isMinimized && (
+            <>
+              <div className="absolute top-0 left-0 w-full h-1 cursor-ns-resize z-50 hover:bg-gold/30" onMouseDown={(e) => startResizing(e, 'top')} />
+              <div className="absolute top-0 left-0 w-1 h-full cursor-ew-resize z-50 hover:bg-gold/30" onMouseDown={(e) => startResizing(e, 'left')} />
+              <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-50 hover:bg-gold/30" onMouseDown={(e) => startResizing(e, 'top-left')} />
+            </>
+          )}
+
+          {/* Main Layout - Split Screen */}
+          <div className="flex-1 flex overflow-hidden">
             
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => setShowOptions(!showOptions)}
-                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all"
+            {/* Left Column: Conversation List - ONLY for Admins or if explicitly needed */}
+            {state.user?.role === 'admin' && (
+              <div 
+                className="border-r border-white/10 bg-[#111b21] flex flex-col relative"
+                style={{ width: `${sidebarWidth}px` }}
+              >
+                {/* Sidebar Resizer */}
+                <div 
+                  className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-gold/30 z-20 group"
+                  onMouseDown={(e) => { e.stopPropagation(); setIsResizingSidebar(true); }}
                 >
-                  <MoreVertical className="w-4 h-4 text-white/70" />
-                </button>
-                
-                {showOptions && (
-                  <div className="absolute right-0 top-full mt-1 bg-black/95 border border-white/20 rounded-xl p-1.5 min-w-[200px] z-10">
-                    <button
-                      onClick={handleSendContact}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all w-full text-left"
-                    >
-                      <UserIcon className="w-4 h-4" />
-                      <span>Share My Contact</span>
-                    </button>
-                    <a
-                      href={buildWhatsAppURL({ product: null, quantity: 1, cartItems: [], cartTotal: 0, currency: 'USD' })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Chat on WhatsApp</span>
-                    </a>
-                    <a
-                      href={buildInstagramURL()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Chat on Instagram</span>
-                    </a>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 bg-white/10 group-hover:bg-gold/50 rounded-full" />
+                </div>
+                <div className="p-4 bg-[#202c33] flex items-center justify-between border-b border-white/5">
+                  <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center">
+                    <UserIcon className="w-4 h-4 text-gold" />
                   </div>
+                  <div className="flex gap-2">
+                    <MessageCircle className="w-5 h-5 text-white/60 hover:text-white cursor-pointer" />
+                    <MoreVertical className="w-5 h-5 text-white/60 hover:text-white cursor-pointer" />
+                  </div>
+                </div>
+                
+                {/* Search */}
+                <div className="p-2">
+                  <div className="bg-[#202c33] rounded-lg px-3 py-1 flex items-center gap-3">
+                    <ImageIcon className="w-4 h-4 text-white/30" />
+                    <input type="text" placeholder="Search or start chat" className="bg-transparent border-none text-xs text-white placeholder-white/30 outline-none w-full py-1" />
+                  </div>
+                </div>
+
+                {/* List */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="flex items-center gap-3 p-3 bg-[#2a3942] border-l-4 border-gold cursor-pointer transition-colors">
+                    <div className="w-12 h-12 rounded-full bg-black border border-gold/30 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      <img src="https://images.unsplash.com/photo-1541643600914-78b084683601?w=100" alt="Support" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0 border-b border-white/5 pb-2">
+                      <div className="flex justify-between items-start mb-1">
+                        <h4 className="text-sm font-semibold text-white truncate">Luxe Support</h4>
+                        <span className="text-[10px] text-gold font-medium">Online</span>
+                      </div>
+                      <p className="text-xs text-white/40 truncate">Establish a connection by sending a text.</p>
+                    </div>
+                  </div>
+                  
+                  {/* Mock other chats */}
+                  {['Personal Stylist', 'Order Updates', 'VIP Concierge'].map((name, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 hover:bg-[#202c33] cursor-not-allowed grayscale opacity-50 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex-shrink-0 flex items-center justify-center">
+                        <UserIcon className="w-6 h-6 text-white/20" />
+                      </div>
+                      <div className="flex-1 min-w-0 border-b border-white/5 pb-2">
+                        <div className="flex justify-between items-start">
+                          <h4 className="text-sm font-medium text-white/80">{name}</h4>
+                          <span className="text-[10px] text-white/20">Locked</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Right Column: Active Chat Area */}
+            <div className="flex-1 flex flex-col bg-matte-black-pure relative">
+               {/* Active Chat Header */}
+               <div 
+                 className={`p-3 bg-[#202c33] flex items-center justify-between border-b border-white/5 z-10 transition-colors ${!isMaximized && !isMinimized ? 'cursor-grab active:cursor-grabbing hover:bg-[#2a3942]' : ''}`}
+                 onMouseDown={startDragging}
+               >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border border-gold/20">
+                    <img src="https://images.unsplash.com/photo-1541643600914-78b084683601?w=100" alt="Avatar" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Luxe Support</h3>
+                    <p className="text-[10px] text-gold/60">{adminTyping ? 'typing...' : 'online'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat Background Pattern (Optional simulation) */}
+              <div 
+                className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}
+              />
+
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2 relative scroll-smooth bg-chat-pattern">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="w-8 h-8 text-gold animate-spin" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center py-20 opacity-30">
+                    <MessageCircle className="w-16 h-16 mx-auto mb-4" />
+                    <p className="text-sm">End-to-end encrypted</p>
+                  </div>
+                ) : (
+                  <>{messages.map(renderMessage)}<div ref={messagesEndRef} /></>
                 )}
               </div>
-              
-              <button onClick={() => setIsOpen(false)} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all">
-                <X className="w-4 h-4 text-white/70" />
-              </button>
-            </div>
-          </div>
-          
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-6 h-6 text-pink-500 animate-spin" />
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-white/40 text-sm mb-2">No messages yet</p>
-                <p className="text-white/30 text-xs">Say hi!</p>
-              </div>
-            ) : (
-              <>{messages.map(renderMessage)}<div ref={messagesEndRef} /></>
-            )}
-          </div>
-          
-          {/* Image input */}
-          {showImageInput && (
-            <div className="px-4 py-2 border-t border-white/10 bg-white/5">
-              <div className="flex gap-2 mb-2">
-                <button
-                  onClick={() => imageInputRef.current?.click()}
-                  className="flex-1 px-3 py-2 bg-white/10 border border-white/10 rounded-lg text-white text-sm hover:bg-white/20 transition-all"
-                >
-                  📁 Choose Image File
-                </button>
-                <span className="text-white/30 self-center">or</span>
-              </div>
-              <input
-                type="url"
-                placeholder="Paste image URL..."
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                className="w-full px-3 py-2 bg-white/10 border border-white/10 rounded-lg text-white placeholder-white/30 text-sm focus:outline-none focus:border-pink-500/50"
-              />
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
-              {imageUrl && imageUrl.startsWith('data:image') && (
-                <img src={imageUrl} alt="Preview" className="mt-2 max-w-full h-32 object-contain rounded-lg border border-white/20" />
-              )}
-              <button onClick={() => { setShowImageInput(false); setImageUrl(''); }} className="text-xs text-white/40 hover:text-white mt-1">
-                Cancel
-              </button>
-            </div>
-          )}
-          
-          {/* File input */}
-          {showFilePicker && (
-            <div className="px-4 py-2 border-t border-white/10 bg-white/5">
-              <div className="flex gap-2 mb-2">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 px-3 py-2 bg-white/10 border border-white/10 rounded-lg text-white text-sm hover:bg-white/20 transition-all"
-                >
-                  📎 Choose File
-                </button>
-                <span className="text-white/30 self-center">or</span>
-              </div>
-              <input
-                type="text"
-                placeholder="File name..."
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value)}
-                className="w-full px-3 py-2 mb-2 bg-white/10 border border-white/10 rounded-lg text-white placeholder-white/30 text-sm focus:outline-none focus:border-pink-500/50"
-              />
-              <input
-                type="url"
-                placeholder="Paste file URL..."
-                value={fileUrl}
-                onChange={(e) => setFileUrl(e.target.value)}
-                className="w-full px-3 py-2 bg-white/10 border border-white/10 rounded-lg text-white placeholder-white/30 text-sm focus:outline-none focus:border-pink-500/50"
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              {fileName && (
-                <p className="text-xs text-white/50 mt-2">📄 {fileName}</p>
-              )}
-              <button onClick={() => { setShowFilePicker(false); setFileUrl(''); setFileName(''); }} className="text-xs text-white/40 hover:text-white mt-1">
-                Cancel
-              </button>
-            </div>
-          )}
-          
-          {/* Product picker */}
-          {showProductPicker && (
-            <div className="px-4 py-2 border-t border-white/10 bg-white/5 max-h-48 overflow-y-auto">
-              <p className="text-xs text-white/50 mb-2">Select a product:</p>
-              <div className="space-y-1">
-                {state.products.slice(0, 5).map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => handleSendProduct(product)}
-                    className="flex items-center gap-2 w-full p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all text-left"
-                  >
-                    <img src={product.image} alt={product.name} className="w-8 h-8 object-cover rounded" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white truncate">{product.name}</p>
-                      <p className="text-xs text-white/50">${product.price.toFixed(2)}</p>
+
+              {/* Input Area (WhatsApp Style) */}
+              <div className="p-3 bg-[#202c33] flex flex-col gap-2">
+                {/* File/URL Previews */}
+                {(imageUrl || fileUrl || showUrlInput) && (
+                  <div className="px-2 py-2 bg-[#2a3942] rounded-lg animate-in fade-in slide-in-from-bottom-2">
+                    {imageUrl && (
+                      <div className="relative inline-block">
+                        <img src={imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-gold/30" />
+                        <button onClick={() => setImageUrl('')} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"><X className="w-3 h-3" /></button>
+                      </div>
+                    )}
+                    {fileUrl && (
+                      <div className="flex items-center gap-2 text-xs text-white/70">
+                        <File className="w-4 h-4 text-gold" />
+                        <span className="truncate max-w-[200px]">{fileName}</span>
+                        <button onClick={() => {setFileUrl(''); setFileName('');}} className="text-red-400 hover:text-red-300">Remove</button>
+                      </div>
+                    )}
+                    {showUrlInput && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Link className="w-4 h-4 text-gold" />
+                        <input 
+                          type="url" 
+                          placeholder="Paste image/file URL..." 
+                          className="flex-1 bg-black/20 border-none text-[11px] py-1 px-2 rounded outline-none text-white focus:ring-1 ring-gold/30"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val.match(/\.(jpeg|jpg|gif|png|webp)/i)) setImageUrl(val);
+                            else setFileUrl(val);
+                          }}
+                        />
+                        <button onClick={() => setShowUrlInput(false)} className="text-[10px] text-white/40">Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1 items-center border-r border-white/5 pr-2 mr-1">
+                    <button
+                      onClick={() => setIsOpen(false)}
+                      className="p-1.5 text-white/40 hover:text-red-400 transition-all"
+                      title="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setIsMaximized(!isMaximized)}
+                      className="p-1.5 text-white/40 hover:text-blue-400 transition-all"
+                      title="Maximize"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                    <a
+                      href={`https://wa.me/${ADMIN_CONTACT.whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-white/40 hover:text-green-400 transition-all"
+                      title="WhatsApp"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                      </svg>
+                    </a>
+                  </div>
+
+                  <div className="flex gap-1">
+                    <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-white/60 hover:text-gold transition-all" title="Emojis">
+                      <Smile className="w-5 h-5" />
+                    </button>
+                    <div className="relative group">
+                      <button onClick={() => setShowFilePicker(!showFilePicker)} className="p-2 text-white/60 hover:text-gold transition-all" title="Attach">
+                        <Paperclip className="w-5 h-5" />
+                      </button>
+                      {showFilePicker && (
+                        <div className="absolute bottom-full left-0 mb-2 bg-[#233138] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 min-w-[120px]">
+                          <button onClick={() => imageInputRef.current.click()} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-[#111b21] text-xs text-white/80 transition-colors">
+                            <ImageIcon className="w-4 h-4 text-pink-500" />
+                            <span>Photo</span>
+                          </button>
+                          <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-[#111b21] text-xs text-white/80 transition-colors border-y border-white/5">
+                            <FileText className="w-4 h-4 text-blue-500" />
+                            <span>Document</span>
+                          </button>
+                          <button onClick={() => setShowUrlInput(!showUrlInput)} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-[#111b21] text-xs text-white/80 transition-colors">
+                            <Link className="w-4 h-4 text-gold" />
+                            <span>URL Link</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setShowProductPicker(false)} className="text-xs text-white/40 hover:text-white mt-2">Cancel</button>
-            </div>
-          )}
-          
-          {/* Emoji picker */}
-          {showEmojiPicker && (
-            <div className="absolute bottom-20 right-4 z-50">
-              <EmojiPicker onEmojiClick={handleEmojiClick} theme="dark" />
-            </div>
-          )}
-          
-          {/* Sticker picker */}
-          {showStickerPicker && (
-            <div className="px-4 py-2 border-t border-white/10 bg-white/5">
-              <p className="text-xs text-white/50 mb-2">Select a sticker:</p>
-              <div className="grid grid-cols-4 gap-2">
-                {STICKERS.map((sticker, i) => (
+                  </div>
+                  
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Type a message"
+                      value={messageText}
+                      onChange={(e) => { setMessageText(e.target.value); handleTyping(); }}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-2 text-sm focus:outline-none placeholder-white/30"
+                    />
+                  </div>
+
                   <button
-                    key={i}
-                    onClick={() => handleSendSticker(sticker)}
-                    className="w-16 h-16 bg-white/5 hover:bg-white/10 rounded-lg p-2 transition-all"
+                    onClick={handleSendMessage}
+                    disabled={isSending || (!messageText.trim() && !imageUrl && !fileUrl)}
+                    className="p-3 bg-gold rounded-full text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                   >
-                    <img src={sticker} alt="Sticker" className="w-full h-full object-contain" />
+                    {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                   </button>
-                ))}
+                </div>
+                
+                {/* Hidden Inputs */}
+                <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
+                <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" />
               </div>
-              <button onClick={() => setShowStickerPicker(false)} className="text-xs text-white/40 hover:text-white mt-2">Cancel</button>
-            </div>
-          )}
-          
-          {/* Input area */}
-          <div className="p-4 border-t border-white/10">
-            <div className="flex items-end gap-2">
-              <div className="flex flex-col gap-1">
-                <button onClick={() => { setShowImageInput(!showImageInput); setShowProductPicker(false); setShowStickerPicker(false); setShowFilePicker(false); }} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all" title="Image">
-                  <ImageIcon className="w-4 h-4 text-white/70" />
-                </button>
-                <button onClick={() => { setShowProductPicker(!showProductPicker); setShowImageInput(false); setShowStickerPicker(false); setShowFilePicker(false); }} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all" title="Product">
-                  <Package className="w-4 h-4 text-white/70" />
-                </button>
-                <button onClick={() => { setShowStickerPicker(!showStickerPicker); setShowImageInput(false); setShowProductPicker(false); setShowFilePicker(false); }} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all" title="Sticker">
-                  <StickerIcon className="w-4 h-4 text-white/70" />
-                </button>
-                <button onClick={() => { setShowFilePicker(!showFilePicker); setShowImageInput(false); setShowProductPicker(false); setShowStickerPicker(false); }} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all" title="File">
-                  <Paperclip className="w-4 h-4 text-white/70" />
-                </button>
-              </div>
-              
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={messageText}
-                  onChange={(e) => { setMessageText(e.target.value); handleTyping(); }}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  className="w-full px-4 py-2.5 pr-10 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-pink-500/50"
-                />
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/10"
-                >
-                  <Smile className="w-4 h-4 text-white/50" />
-                </button>
-              </div>
-              
-              <button
-                onClick={handleSendMessage}
-                disabled={isSending || (!messageText.trim() && !imageUrl.trim() && !fileUrl.trim())}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-red-500 text-white hover:from-pink-600 hover:to-red-600 transition-all disabled:opacity-50"
-              >
-                {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </button>
+
+              {/* Pickers (Floating) */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-20 left-4 z-50">
+                  <EmojiPicker onEmojiClick={handleEmojiClick} theme="dark" width={300} height={400} />
+                </div>
+              )}
             </div>
           </div>
         </div>

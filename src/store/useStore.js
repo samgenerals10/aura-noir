@@ -78,7 +78,7 @@ const initialState = {
 
   isCartOpen:       false, // controls whether CartDrawer is visible
   isAuthOpen:       false, // controls whether AuthModal is visible
-  currentView:      'shop', // 'shop' | 'admin' | 'wishlist' — which page to show
+  currentView:      'shop', // 'shop' | 'admin' | 'wishlist' | 'about' | 'contact'
   searchQuery:      '',     // current search input value
   selectedCategory: 'all', // current category filter
 };

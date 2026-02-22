@@ -3,7 +3,7 @@
  * NOTE: This is a UI library component (shadcn/ui). Comments are kept light to avoid clutter.
  */
 import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
@@ -13,13 +13,13 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-background text-foreground",
-        destructive,
-        success,
-        warning,
-        info,
+        destructive: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+        success: "border-green-500/50 text-green-600 dark:text-green-400 [&>svg]:text-green-600",
+        warning: "border-yellow-500/50 text-yellow-600 dark:text-yellow-400 [&>svg]:text-yellow-600",
+        info: "border-blue-500/50 text-blue-600 dark:text-blue-400 [&>svg]:text-blue-600",
       },
     },
-    defaultVariants
+    defaultVariants: {
       variant: "default",
     },
   }

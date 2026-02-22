@@ -36,12 +36,12 @@ const Wishlist = () => {
 
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-red-500 mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-sm bg-black border border-gold mb-4">
             <Heart className="w-8 h-8 text-white fill-white" />
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
             Your{' '}
-            <span className="bg-gradient-to-r from-pink-400 via-red-400 to-rose-300 bg-clip-text text-transparent">
+            <span className="text-gold">
               Wishlist
             </span>
           </h1>
@@ -85,7 +85,7 @@ const Wishlist = () => {
         ) : (
           // Empty state when no products are liked
           <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/5 border border-white/10 mb-6">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-sm bg-white/5 border border-white/10 mb-6">
               <Heart className="w-10 h-10 text-white/20" />
             </div>
             <h3 className="text-xl font-semibold text-white/60 mb-2">Your wishlist is empty</h3>
@@ -94,7 +94,7 @@ const Wishlist = () => {
             </p>
             <a
               href="#products"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-xl text-white font-medium hover:from-pink-600 hover:to-red-600 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-black rounded-xl text-white font-medium hover:bg-black/90 transition-all"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Start Shopping</span>

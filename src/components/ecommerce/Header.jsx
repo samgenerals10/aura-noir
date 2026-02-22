@@ -36,10 +36,21 @@ const Header = () => {
   const handleAdminClick = () => {
     if (state.user?.role === 'admin') {
       // User is logged in as admin → toggle between shop and admin view
+      const isSwitchingToAdmin = state.currentView !== 'admin';
+      
       dispatch({
         type: 'SET_VIEW',
-        view: state.currentView === 'admin' ? 'shop' : 'admin',
+        view: isSwitchingToAdmin ? 'admin' : 'shop',
       });
+
+      if (isSwitchingToAdmin) {
+        // Explicitly signal 'store' mode
+        localStorage.setItem('admin_active_mode', 'store');
+        localStorage.setItem('admin_active_tab', 'overview');
+        window.dispatchEvent(new CustomEvent('switchAdminTab', { 
+          detail: { tab: 'overview', mode: 'store' } 
+        }));
+      }
     } else {
       // User is NOT logged in as admin → prompt them to log in
       dispatch({ type: 'TOGGLE_AUTH' });
@@ -54,6 +65,33 @@ const Header = () => {
     }
   };
 
+  /**
+   * handleShopNavigation → Unified helper for navigating to product categories
+   * Handles: Switching to shop view, setting category, and smooth scrolling.
+   */
+  const handleShopNavigation = (category = 'all', isMobile = false) => {
+    if (state.currentView !== 'shop') {
+      dispatch({ type: 'SET_VIEW', view: 'shop' });
+    }
+    
+    dispatch({ type: 'SET_CATEGORY', category });
+    
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
+
+    // Use a small timeout to ensure the DOM is updated if we switched views
+    setTimeout(() => {
+      const element = document.getElementById('products');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        // Fallback: scroll to top if element not found
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/80 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,13 +99,18 @@ const Header = () => {
 
           {/* Logo */}
           <div
-            className="flex items-center cursor-pointer"
-            onClick={() => dispatch({ type: 'SET_VIEW', view: 'shop' })}
+            className="flex mr-6 items-center cursor-pointer"
+            onClick={() => {
+              if (state.currentView !== 'shop') {
+                dispatch({ type: 'SET_VIEW', view: 'shop' });
+              }
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 via-red-500 to-rose-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">L</span>
-            </div>
-            <span className="ml-3 text-xl font-bold bg-gradient-to-r from-pink-400 via-red-400 to-rose-300 bg-clip-text text-transparent">
+            {/* <div className="w-10 h-10 rounded-xl bg-blackbr pink-500 red-500 rose-600 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">AN</span>
+            </div> */}
+            <span className="ml-3 text-xl font-bold text-gold">
               Aura-Noir
             </span>
           </div>
@@ -76,40 +119,46 @@ const Header = () => {
           <nav className="hidden md:flex items-center space-x-8">
             <button
               onClick={() => {
-                dispatch({ type: 'SET_VIEW', view: 'shop' });
-                dispatch({ type: 'SET_CATEGORY', category: 'all' });
+                if (state.currentView !== 'shop') {
+                  dispatch({ type: 'SET_VIEW', view: 'shop' });
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+              className="group relative text-white/70 hover:text-white transition-colors text-sm font-medium py-1"
             >
-              Shop All
+              <span>Home</span>
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 ease-out group-hover:w-full" />
             </button>
             <button
-              onClick={() => {
-                dispatch({ type: 'SET_VIEW', view: 'shop' });
-                dispatch({ type: 'SET_CATEGORY', category: 'bags' });
-              }}
-              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+              onClick={() => handleShopNavigation('all')}
+              className="group relative text-white/70 hover:text-white transition-colors text-sm font-medium py-1"
             >
-              Bags
+              <span>Shop</span>
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 ease-out group-hover:w-full" />
             </button>
             <button
-              onClick={() => {
-                dispatch({ type: 'SET_VIEW', view: 'shop' });
-                dispatch({ type: 'SET_CATEGORY', category: 'shoes' });
-              }}
-              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+              onClick={() => dispatch({ type: 'SET_VIEW', view: 'about' })}
+              className="group relative text-white/70 hover:text-white transition-colors text-sm font-medium py-1"
             >
-              Shoes
+              <span>About</span>
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 ease-out group-hover:w-full" />
             </button>
             <button
-              onClick={() => {
-                dispatch({ type: 'SET_VIEW', view: 'shop' });
-                dispatch({ type: 'SET_CATEGORY', category: 'watches' });
-              }}
-              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+              onClick={() => dispatch({ type: 'SET_VIEW', view: 'contact' })}
+              className="group relative text-white/70 hover:text-white transition-colors text-sm font-medium py-1"
             >
-              Watches
+              <span>Contact / FAQ</span>
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 ease-out group-hover:w-full" />
             </button>
+            <a
+              href="https://hairstudio.example.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative text-gold/80 hover:text-gold transition-colors text-sm font-semibold py-1 border-l border-white/10 pl-8 ml-2"
+            >
+              <span>Hair Studio</span>
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 ease-out group-hover:w-full" />
+            </a>
           </nav>
 
           {/* Search Bar */}
@@ -121,7 +170,7 @@ const Header = () => {
                 placeholder="Search products..."
                 value={state.searchQuery}
                 onChange={(e) => dispatch({ type: 'SET_SEARCH', query: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-pink-500/50 focus:bg-white/10 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-gold/50 focus:bg-white/10 transition-all"
               />
             </div>
           </div>
@@ -129,27 +178,24 @@ const Header = () => {
           {/* Actions */}
           <div className="flex items-center space-x-3">
 
-            {/* ── ADMIN BUTTON (ALWAYS VISIBLE) ── */}
-            {/* Button appearance changes based on whether user is logged in as admin */}
-            <button
-              onClick={handleAdminClick}
-              className={`hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-lg transition-all text-sm ${
-                state.user?.role === 'admin'
-                  // Logged in as admin → pink/red gradient (active state)
-                  ? 'bg-gradient-to-r from-pink-500/20 to-red-500/20 border border-pink-500/30 text-pink-300 hover:text-white hover:border-pink-400/50'
-                  // Not admin → subtle gray (inactive state)
-                  : 'bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              <span>
-                {/* Show different text based on state */}
-                {state.user?.role === 'admin' 
-                  ? (state.currentView === 'admin' ? 'Store' : 'Admin') // toggle label
-                  : 'Admin'                                              // default label
-                }
-              </span>
-            </button>
+            {/* ── ADMIN BUTTON (ONLY VISIBLE TO ADMINS) ── */}
+            {state.user?.role === 'admin' && (
+              <button
+                onClick={handleAdminClick}
+                className={`hidden sm:flex items-center space-x-1.5 px-3 py-2 rounded-lg transition-all text-sm ${
+                  state.currentView === 'admin'
+                    // In admin view → black (active state)
+                    ? 'bg-black border border-gold text-gold hover:text-white hover:border-gold-bright'
+                    // Not in admin view → subtle gray
+                    : 'bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                <span>
+                  {state.currentView === 'admin' ? 'Store' : 'Admin'}
+                </span>
+              </button>
+            )}
 
             {/* Wishlist button — shows count of liked items */}
             <button
@@ -157,11 +203,11 @@ const Header = () => {
               className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all"
             >
               <Heart className={`w-5 h-5 transition-all ${
-                state.likes.length > 0 ? 'text-pink-400 fill-pink-400' : 'text-white/70'
+                state.likes.length > 0 ? 'text-gold fill-gold' : 'text-white/70'
               }`} />
               {/* Badge showing liked items count */}
               {state.likes.length > 0 && (
-                <span className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white text-xs font-bold flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 w-5 h-5 bg-blackr matte-black matte-blacksoft shadow-gold-foil/50 rounded-full text-white text-xs font-bold flex items-center justify-center">
                   {state.likes.length}
                 </span>
               )}
@@ -172,19 +218,19 @@ const Header = () => {
               <button
                 onClick={() => {
                   dispatch({ type: 'SET_VIEW', view: 'admin' });
-                  // Auto-switch to messages tab by dispatching a custom action
-                  // We'll need to add this to the store or use a different approach
-                  // For now, we'll use localStorage to communicate with AdminPanel
+                  // Explicitly signal 'messages' mode
+                  localStorage.setItem('admin_active_mode', 'messages');
                   localStorage.setItem('admin_active_tab', 'messages');
-                  // Trigger a custom event that AdminPanel can listen to
-                  window.dispatchEvent(new CustomEvent('switchAdminTab', { detail: 'messages' }));
+                  window.dispatchEvent(new CustomEvent('switchAdminTab', { 
+                    detail: { tab: 'messages', mode: 'messages' } 
+                  }));
                 }}
                 className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all"
               >
                 <MessageSquare className="w-5 h-5 text-white/70" />
                 {/* Badge showing unread messages count */}
                 {unreadMessages > 0 && (
-                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white text-xs font-bold flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-black rounded-full text-white text-xs font-bold flex items-center justify-center">
                     {unreadMessages}
                   </span>
                 )}
@@ -211,7 +257,7 @@ const Header = () => {
               <ShoppingCart className="w-5 h-5 text-white/70" />
               {/* Badge showing cart count */}
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white text-xs font-bold flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 w-5 h-5 bg-blackr matte-black matte-blacksoft shadow-gold-foil/50 rounded-full text-white text-xs font-bold flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
@@ -243,26 +289,56 @@ const Header = () => {
                 placeholder="Search products..."
                 value={state.searchQuery}
                 onChange={(e) => dispatch({ type: 'SET_SEARCH', query: e.target.value })}
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-pink-500/50"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-gold/50"
               />
             </div>
 
-            {/* Category links */}
-            {['all', 'bags', 'shoes', 'watches'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => {
-                  dispatch({ type: 'SET_CATEGORY', category: cat });
-                  dispatch({ type: 'SET_VIEW', view: 'shop' });
-                  setMobileMenuOpen(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all capitalize"
-              >
-                {cat === 'all' ? 'Shop All' : cat}
-              </button>
-            ))}
+            {/* Navigation links */}
+            <button
+              onClick={() => {
+                dispatch({ type: 'SET_VIEW', view: 'shop' });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+            >
+              Home
+            </button>
+            <button
+              onClick={() => handleShopNavigation('all', true)}
+              className="block w-full text-left px-4 py-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+            >
+              Shop
+            </button>
+            <button
+              onClick={() => {
+                dispatch({ type: 'SET_VIEW', view: 'about' });
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+            >
+              About
+            </button>
+            <button
+              onClick={() => {
+                dispatch({ type: 'SET_VIEW', view: 'contact' });
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+            >
+              Contact / FAQ
+            </button>
 
-            {/* Admin button in mobile menu — also always visible */}
+            <a
+              href="https://hairstudio.example.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-left px-4 py-2 text-gold font-semibold hover:bg-white/5 rounded-lg transition-all"
+            >
+              Hair Studio
+            </a>
+
+            {/* Admin/Store button in mobile menu */}
             <button
               onClick={() => {
                 handleAdminClick();
@@ -270,15 +346,38 @@ const Header = () => {
               }}
               className={`block w-full text-left px-4 py-2 hover:bg-white/5 rounded-lg transition-all ${
                 state.user?.role === 'admin' 
-                  ? 'text-pink-400 hover:text-pink-300'
+                  ? 'text-gold hover:text-gold/80'
                   : 'text-white/50 hover:text-white'
               }`}
             >
               {state.user?.role === 'admin'
-                ? (state.currentView === 'admin' ? 'Back to Store' : 'Admin Panel')
+                ? (state.currentView === 'admin' ? 'Back to Store' : 'Store Dashboard')
                 : 'Admin Panel'
               }
             </button>
+
+            {/* Messages button in mobile menu (Admin only) */}
+            {state.user?.role === 'admin' && (
+              <button
+                onClick={() => {
+                  dispatch({ type: 'SET_VIEW', view: 'admin' });
+                  localStorage.setItem('admin_active_mode', 'messages');
+                  localStorage.setItem('admin_active_tab', 'messages');
+                  window.dispatchEvent(new CustomEvent('switchAdminTab', { 
+                    detail: { tab: 'messages', mode: 'messages' } 
+                  }));
+                  setMobileMenuOpen(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+              >
+                Message Center
+                {unreadMessages > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center w-5 h-5 bg-black rounded-full text-white text-[10px] font-bold">
+                    {unreadMessages}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>

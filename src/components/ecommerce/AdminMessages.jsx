@@ -20,7 +20,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { useStore } from '@/store/useStore';
 import {
   listenToAllConversations, listenToMessages, sendMessage, markMessagesAsRead,
-  updateTypingStatus, deleteMessage, editMessage, forwardMessage,
+  updateTypingStatus, deleteMessage, editMessage,
 } from '@/lib/messaging';
 import { toast } from 'sonner';
 
@@ -193,7 +193,7 @@ const AdminMessages = () => {
       setShowFilePicker(false);
       setIsTyping(false);
       updateTypingStatus(selectedConversationId, 'admin', false);
-    } catch (err) {
+    } catch {
       toast.error('Failed to send message');
     } finally {
       setIsSending(false);
@@ -214,7 +214,7 @@ const AdminMessages = () => {
         senderName: 'Support Team',
       });
       toast.success('Product shared!');
-    } catch (err) {
+    } catch {
       toast.error('Failed to share product');
     } finally {
       setIsSending(false);
@@ -233,7 +233,7 @@ const AdminMessages = () => {
         senderId: 'admin',
         senderName: 'Support Team',
       });
-    } catch (err) {
+    } catch {
       toast.error('Failed to send sticker');
     } finally {
       setIsSending(false);
@@ -254,26 +254,26 @@ const AdminMessages = () => {
       await deleteMessage(selectedConversationId, messageId);
       toast.success('Message deleted');
       setSelectedMessage(null);
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete message');
     }
   };
   
   // Edit message
-  const handleEditMessage = async (messageId) => {
+  const handleEditMessage = async () => {
     if (!editText.trim()) return;
     try {
-      await editMessage(selectedConversationId, messageId, editText.trim());
+      await editMessage(selectedConversationId, editingMessageId, editText.trim());
       toast.success('Message updated');
       setEditingMessageId(null);
       setEditText('');
-    } catch (err) {
+    } catch {
       toast.error('Failed to edit message');
     }
   };
   
   // Forward message
-  const handleForwardMessage = async (messageId) => {
+  const handleForwardMessage = async () => {
     toast.info('Select a conversation to forward to');
     setSelectedMessage(null);
   };
@@ -326,7 +326,7 @@ const AdminMessages = () => {
                       </button>
                     </>
                   )}
-                  <button onClick={() => handleForwardMessage(msg.id)} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded">
+                  <button onClick={() => handleForwardMessage()} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded">
                     <Share2 className="w-3 h-3" /><span>Forward</span>
                   </button>
                   <button onClick={() => handleDeleteMessage(msg.id)} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded">
@@ -339,7 +339,7 @@ const AdminMessages = () => {
           
           {/* Edit mode */}
           {isEditing ? (
-            <div className="bg-white/10 rounded-2xl p-3 border border-white/20">
+            <div className="bg-white/10 rounded-sm p-3 border border-white/20">
               <input
                 type="text"
                 value={editText}
@@ -348,13 +348,13 @@ const AdminMessages = () => {
                 autoFocus
               />
               <div className="flex gap-2">
-                <button onClick={() => handleEditMessage(msg.id)} className="px-3 py-1 bg-pink-500 rounded text-white text-xs">Save</button>
+                <button onClick={() => handleEditMessage()} className="px-3 py-1 bg-black border border-gold rounded text-white text-xs">Save</button>
                 <button onClick={() => { setEditingMessageId(null); setEditText(''); }} className="px-3 py-1 bg-white/10 rounded text-white text-xs">Cancel</button>
               </div>
             </div>
           ) : (
-            <div className={`rounded-2xl px-4 py-2.5 ${
-              isOwn ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white'
+            <div className={`rounded-sm px-4 py-2.5 ${
+              isOwn ? 'bg-black border border-gold text-white'
                    : 'bg-white/10 text-white border border-white/10'
             }`}>
               {msg.forwarded && <p className="text-xs opacity-60 mb-1 flex items-center gap-1"><Share2 className="w-3 h-3" />Forwarded from {msg.originalSender}</p>}
@@ -405,7 +405,7 @@ const AdminMessages = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
       
       {/* Conversations list */}
-      <div className="lg:col-span-1 bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+      <div className="lg:col-span-1 bg-black border border-white/10 rounded-sm overflow-hidden flex flex-col">
         <div className="p-4 border-b border-white/10">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             <MessageSquare className="w-5 h-5" /><span>Messages</span>
@@ -424,7 +424,7 @@ const AdminMessages = () => {
           ) : (
             conversations.map((conv) => {
               const otherParticipant = Object.entries(conv.participantNames || {})
-                .find(([id, name]) => id !== 'admin')?.[1] || 'Customer';
+                .find(([participantId]) => participantId !== 'admin')?.[1] || 'Customer';
               const unreadCount = conv.unreadCount?.admin || 0;
               
               return (
@@ -436,13 +436,13 @@ const AdminMessages = () => {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-red-500 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-black border border-gold flex items-center justify-center flex-shrink-0">
                       <User className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-sm font-semibold text-white truncate">{otherParticipant}</p>
-                        {unreadCount > 0 && <span className="text-xs bg-pink-500 text-white px-2 py-0.5 rounded-full">{unreadCount}</span>}
+                        {unreadCount > 0 && <span className="text-xs bg-gold text-black px-2 py-0.5 rounded-full">{unreadCount}</span>}
                       </div>
                       {conv.lastMessage && <p className="text-xs text-white/50 truncate">{conv.lastMessage.text}</p>}
                       {conv.updatedAt && <p className="text-xs text-white/30 mt-1">{conv.updatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>}
@@ -456,12 +456,12 @@ const AdminMessages = () => {
       </div>
       
       {/* Conversation view */}
-      <div className="lg:col-span-2 bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+      <div className="lg:col-span-2 bg-black border border-white/10 rounded-sm overflow-hidden flex flex-col">
         {selectedConversationId ? (
           <>
-            <div className="p-4 border-b border-white/10 bg-gradient-to-r from-pink-500/10 to-red-500/10">
+            <div className="p-4 border-b border-white/10 bg-black">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-red-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-black border border-gold flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -582,7 +582,7 @@ const AdminMessages = () => {
                   </button>
                 </div>
                 
-                <button onClick={handleSendMessage} disabled={isSending || (!messageText.trim() && !imageUrl.trim() && !fileUrl.trim())} className="p-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-red-500 text-white hover:from-pink-600 hover:to-red-600 transition-all disabled:opacity-50">
+                <button onClick={handleSendMessage} disabled={isSending || (!messageText.trim() && !imageUrl.trim() && !fileUrl.trim())} className="p-2.5 rounded-xl bg-black text-white hover:bg-black/90 transition-all disabled:opacity-50">
                   {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </button>
               </div>

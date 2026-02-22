@@ -37,6 +37,7 @@ const CommandDialog = ({ children, ...props }) => {
 const CommandInput = React.forwardRef(({ className, ...props }, ref) => (
   <div
     className="flex items-center border-b border-border/40 px-3"
+    // eslint-disable-next-line react/no-unknown-property
     cmdk-input-wrapper=""
   >
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />

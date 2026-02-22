@@ -11,24 +11,24 @@ import { ArrowRight } from 'lucide-react';
 
 const categoryCards = [
   {
-    id: 'bags',
-    name: 'Luxury Bags',
-    count: 48,
-    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&auto=format&fit=crop',
+    id: 'signature',
+    name: 'Signature Scents',
+    count: 12,
+    image: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&auto=format&fit=crop',
     gradient: 'from-pink-900/60 via-transparent to-black/80',
   },
   {
-    id: 'shoes',
-    name: 'Premium Shoes',
-    count: 92,
-    image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop',
+    id: 'oud',
+    name: 'Oud & Oriental',
+    count: 8,
+    image: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=800&auto=format&fit=crop',
     gradient: 'from-red-900/60 via-transparent to-black/80',
   },
   {
-    id: 'watches',
-    name: 'Designer Watches',
-    count: 36,
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop',
+    id: 'floral',
+    name: 'Floral & Fresh',
+    count: 15,
+    image: 'https://images.unsplash.com/photo-1563170351-be82bc888bb4?w=800&auto=format&fit=crop',
     gradient: 'from-purple-900/60 via-transparent to-black/80',
   },
 ];
@@ -47,7 +47,7 @@ const CategoriesSection = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             Shop by{' '}
-            <span className="bg-gradient-to-r from-pink-400 via-red-400 to-rose-300 bg-clip-text text-transparent">
+            <span className="text-gold">
               Category
             </span>
           </h2>
@@ -59,14 +59,14 @@ const CategoriesSection = () => {
             <button
               key={cat.id}
               onClick={() => handleCategoryClick(cat.id)}
-              className="group relative h-72 rounded-2xl overflow-hidden border border-white/10 hover:border-pink-500/30 transition-all duration-500"
+              className="group relative h-72 rounded-sm overflow-hidden border border-white/10 hover:border-gold/30 transition-all duration-500"
             >
               <img
                 src={cat.image}
                 alt={cat.name}
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
-              <div className={`absolute inset-0 bg-gradient-to-t ${cat.gradient}`} />
+              <div className="absolute inset-0 bg-black/60" />
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                 <h3 className="text-2xl font-bold text-white mb-2">{cat.name}</h3>
                 <p className="text-white/60 text-sm mb-4">{cat.count} Products</p>

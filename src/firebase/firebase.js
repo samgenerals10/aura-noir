@@ -3,7 +3,7 @@
 // Replace all VITE_FIREBASE_* values in your .env file with your actual Firebase project credentials.
 // Get these from: Firebase Console → Project Settings → Your Apps → SDK setup and configuration
 import { initializeApp } from 'firebase/app';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 // TODO: Add SDKs for Firebase products that you want to use

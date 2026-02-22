@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { addProduct, updateProduct, deleteProduct } from '@/lib/firestore';
+import { fetchInvites, createInvite } from '@/lib/staff_invites';
+import { getApproximateLocation } from '@/lib/location';
 import { toast } from 'sonner';
 import AdminMessages from './AdminMessages';
 
@@ -69,20 +71,27 @@ const AdminPanel = () => {
 
   // ── LOCAL STATE ─────────────────────────────────────────────────────────
   const [activeTab,    setActiveTab]    = useState('overview'); // 'overview' | 'products' | 'orders' | 'messages'
+  const [viewMode,     setViewMode]     = useState('store');    // 'store' | 'messages'
   
   // ── LISTEN FOR TAB SWITCH FROM HEADER ───────────────────────────────────
   // When admin clicks the message icon in the header, auto-switch to messages tab
   useEffect(() => {
-    // Check localStorage for tab preference on mount
+    // Check localStorage for mode/tab preference on mount
+    const savedMode = localStorage.getItem('admin_active_mode');
     const savedTab = localStorage.getItem('admin_active_tab');
-    if (savedTab) {
-      setActiveTab(savedTab);
-      localStorage.removeItem('admin_active_tab'); // clear after reading
-    }
+    
+    if (savedMode) setViewMode(savedMode);
+    if (savedTab) setActiveTab(savedTab);
+    
+    // Clear after reading
+    localStorage.removeItem('admin_active_mode');
+    localStorage.removeItem('admin_active_tab');
     
     // Listen for custom event from Header
     const handleTabSwitch = (event) => {
-      setActiveTab(event.detail);
+      const { tab, mode } = event.detail;
+      if (mode) setViewMode(mode);
+      if (tab) setActiveTab(tab);
     };
     
     window.addEventListener('switchAdminTab', handleTabSwitch);
@@ -91,12 +100,42 @@ const AdminPanel = () => {
       window.removeEventListener('switchAdminTab', handleTabSwitch);
     };
   }, []);
+
+  // ── LOAD INVITATIONS ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (activeTab === 'staff') {
+      const loadInvites = async () => {
+        const data = await fetchInvites();
+        setInvitations(data);
+      };
+      loadInvites();
+    }
+  }, [activeTab]);
+
+  const handleGenerateInvite = async () => {
+    setIsGenerating(true);
+    try {
+      const location = await getApproximateLocation();
+      const newInvite = await createInvite(state.user.id, state.user.email, location);
+      setInvitations(prev => [newInvite, ...prev]);
+      toast.success('Invitation link generated!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate invitation.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const [showForm,     setShowForm]     = useState(false);      // show/hide the product form
   const [editingProduct, setEditingProduct] = useState(null);   // null = adding new, object = editing
   const [formData,     setFormData]     = useState(EMPTY_FORM); // current form field values
   const [isSaving,     setIsSaving]     = useState(false);      // true while saving to Firestore
   const [formError,    setFormError]    = useState('');         // validation error message
   const [deleteConfirm, setDeleteConfirm] = useState(null);     // product ID pending delete confirmation
+
+  const [invitations,   setInvitations]  = useState([]);        // list of staff invites
+  const [isGenerating, setIsGenerating] = useState(false);
 
 
   // ── STATS ────────────────────────────────────────────────────────────────
@@ -108,22 +147,22 @@ const AdminPanel = () => {
     {
       label: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`,
       change: '+12.5%', up: true,
-      icon: <DollarSign className="w-5 h-5" />, gradient: 'from-green-500 to-emerald-500',
+      icon: <DollarSign className="w-5 h-5" />, gradient: 'green-500 emerald-500',
     },
     {
       label: 'Total Orders', value: totalOrders.toString(),
       change: '+8.2%', up: true,
-      icon: <ShoppingBag className="w-5 h-5" />, gradient: 'from-blue-500 to-cyan-500',
+      icon: <ShoppingBag className="w-5 h-5" />, gradient: 'blue-500 cyan-500',
     },
     {
       label: 'Products', value: state.products.length.toString(),
       change: `${state.products.length} total`, up: true,
-      icon: <Package className="w-5 h-5" />, gradient: 'from-purple-500 to-pink-500',
+      icon: <Package className="w-5 h-5" />, gradient: 'purple-500 pink-500',
     },
     {
       label: 'Customers', value: '2,847',
       change: '+15.3%', up: true,
-      icon: <Users className="w-5 h-5" />, gradient: 'from-orange-500 to-red-500',
+      icon: <Users className="w-5 h-5" />, gradient: 'orange-500 red-500',
     },
   ];
 
@@ -173,9 +212,36 @@ const AdminPanel = () => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      // For checkboxes use `checked`, for everything else use `value`
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  // handleFileChange → converts local file to base64
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check file type
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isImage && !isVideo) {
+      toast.error('Please select an image or video file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result;
+      if (isVideo) {
+        setFormData(prev => ({ ...prev, videoUrl: base64String }));
+        toast.success('Video imported successfully');
+      } else {
+        setFormData(prev => ({ ...prev, image: base64String }));
+        toast.success('Image imported successfully');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // validateForm → checks required fields before saving
@@ -199,6 +265,10 @@ const AdminPanel = () => {
   // handleSave → saves the product to Firestore (add or update)
   const handleSave = async () => {
     if (!validateForm()) return;
+
+    // Is this a perfume item? prompt
+    window.confirm('Is this a perfume item?');
+    // Note: We don't restrict, just prompt as requested.
 
     setIsSaving(true);
     setFormError('');
@@ -227,7 +297,7 @@ const AdminPanel = () => {
         // ── EDIT EXISTING PRODUCT ──
         // updateProduct saves changes to Firestore
         // CONNECTS TO → src/lib/firestore.js → updateProduct()
-        const updated = await updateProduct(editingProduct.id, productData);
+        await updateProduct(editingProduct.id, productData);
 
         // Update local state immediately so UI reflects the change
         // without waiting for a Firestore re-fetch
@@ -283,25 +353,36 @@ const AdminPanel = () => {
         {/* ── ADMIN HEADER ── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Admin Dashboard</h1>
-            <p className="text-white/50">Manage your store, products, and orders</p>
+            <h1 className="text-3xl font-bold text-white mb-1">
+              {viewMode === 'messages' ? 'Message Center' : 'Store Management'}
+            </h1>
+            <p className="text-white/50">
+              {viewMode === 'messages' 
+                ? 'Manage your customer conversations' 
+                : 'Manage your products, orders, and overview'}
+            </p>
           </div>
 
           {/* Tab buttons */}
           <div className="flex items-center gap-2 mt-4 sm:mt-0">
-            {['overview', 'products', 'orders', 'messages'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize ${
-                  activeTab === tab
-                    ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg shadow-pink-500/25'
-                    : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+            {['overview', 'products', 'orders', 'staff', 'messages']
+              .filter(tab => {
+                if (viewMode === 'messages') return tab === 'messages';
+                return tab !== 'messages';
+              })
+              .map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize ${
+                    activeTab === tab
+                      ? 'bg-black text-white'
+                      : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
           </div>
         </div>
 
@@ -315,9 +396,9 @@ const AdminPanel = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {stats.map((stat, i) => (
-                <div key={i} className="relative overflow-hidden p-6 bg-gradient-to-b from-white/[0.08] to-white/[0.02] border border-white/10 rounded-2xl hover:border-white/20 transition-all group">
+                <div key={i} className="relative overflow-hidden p-6 bg-blackb white/[0.08] white/[0.02] border border-white/10 rounded-sm hover:border-white/20 transition-all group">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`p-2.5 rounded-xl bg-gradient-to-r ${stat.gradient}`}>
+                    <div className="p-2.5 rounded-xl bg-black border border-gold">
                       <div className="text-white">{stat.icon}</div>
                     </div>
                     <div className={`flex items-center space-x-1 text-xs font-medium ${stat.up ? 'text-green-400' : 'text-red-400'}`}>
@@ -332,7 +413,7 @@ const AdminPanel = () => {
             </div>
 
             {/* Recent Orders Table */}
-            <div className="bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl overflow-hidden">
+            <div className="bg-blackb white/[0.06] white/[0.02] border border-white/10 rounded-sm overflow-hidden">
               <div className="p-6 border-b border-white/10">
                 <h3 className="text-lg font-semibold text-white">Recent Orders</h3>
               </div>
@@ -353,7 +434,7 @@ const AdminPanel = () => {
                           <div className="text-sm text-white">{order.customerName}</div>
                           <div className="text-xs text-white/40">{order.customerEmail}</div>
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium text-pink-400">${order.total.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-gold">${order.total.toFixed(2)}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium border ${statusColors[order.status]}`}>
                             {statusIcons[order.status]}
@@ -398,7 +479,7 @@ const AdminPanel = () => {
               </h3>
               <button
                 onClick={openAddForm}
-                className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-red-500 rounded-xl text-white text-sm font-medium hover:from-pink-600 hover:to-red-600 transition-all shadow-lg shadow-pink-500/20"
+                className="flex items-center space-x-2 px-4 py-2.5 bg-black rounded-xl text-white text-sm font-medium hover:bg-black/90 transition-all"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Product</span>
@@ -408,7 +489,7 @@ const AdminPanel = () => {
             {/* ── ADD / EDIT PRODUCT FORM ── */}
             {/* Only visible when showForm is true */}
             {showForm && (
-              <div className="bg-gradient-to-b from-white/[0.08] to-white/[0.03] border border-white/10 rounded-2xl p-6">
+              <div className="bg-blackb white/[0.08] white/[0.03] border border-white/10 rounded-sm p-6">
 
                 {/* Form header */}
                 <div className="flex items-center justify-between mb-6">
@@ -499,16 +580,27 @@ const AdminPanel = () => {
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-white/50 mb-1.5">
                       <ImageIcon className="w-3.5 h-3.5 inline mr-1" />
-                      Primary Image URL
+                      Primary Image / Video Import
                     </label>
-                    <input
-                      type="url"
-                      name="image"
-                      value={formData.image}
-                      onChange={handleChange}
-                      placeholder="https://example.com/image.jpg"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-pink-500/50"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        name="image"
+                        value={formData.image}
+                        onChange={handleChange}
+                        placeholder="Primary image URL..."
+                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-gold/50"
+                      />
+                      <label className="flex items-center justify-center px-4 bg-black border border-gold/30 rounded-xl cursor-pointer hover:bg-black/80 transition-all text-white/70">
+                        <Plus className="w-4 h-4" />
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                      </label>
+                    </div>
                     {/* Live image preview */}
                     {formData.image && (
                       <img
@@ -589,7 +681,7 @@ const AdminPanel = () => {
                   <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-xl text-white font-medium hover:from-pink-600 hover:to-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-6 py-3 bg-black rounded-xl text-white font-medium hover:bg-black/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSaving ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /><span>Saving...</span></>
@@ -612,7 +704,7 @@ const AdminPanel = () => {
             {/* ── PRODUCTS LIST ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {state.products.map((product) => (
-                <div key={product.id} className="flex gap-4 p-4 bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 rounded-xl hover:border-white/20 transition-all">
+                <div key={product.id} className="flex gap-4 p-4 bg-blackb white/[0.06] white/[0.02] border border-white/10 rounded-xl hover:border-white/20 transition-all">
                   <img
                     src={product.image || '/placeholder.svg'}
                     alt={product.name}
@@ -655,7 +747,7 @@ const AdminPanel = () => {
             {/* Shows when admin clicks delete — prevents accidental deletes */}
             {deleteConfirm && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                <div className="bg-gray-900 border border-white/20 rounded-2xl p-6 max-w-sm w-full mx-4">
+                <div className="bg-gray-900 border border-white/20 rounded-sm p-6 max-w-sm w-full mx-4">
                   <h4 className="text-lg font-semibold text-white mb-2">Delete Product?</h4>
                   <p className="text-white/50 text-sm mb-6">
                     This will permanently remove the product from your store and cannot be undone.
@@ -689,7 +781,7 @@ const AdminPanel = () => {
             <h3 className="text-lg font-semibold text-white">All Orders ({state.orders.length})</h3>
 
             {state.orders.length === 0 ? (
-              <div className="text-center py-16 bg-gradient-to-b from-white/[0.04] to-transparent border border-white/10 rounded-2xl">
+              <div className="text-center py-16 bg-blackb white/[0.04] transparent border border-white/10 rounded-sm">
                 <ShoppingBag className="w-16 h-16 text-white/10 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white/40">No orders yet</h3>
                 <p className="text-sm text-white/30 mt-1">Orders will appear here when customers make purchases</p>
@@ -697,7 +789,7 @@ const AdminPanel = () => {
             ) : (
               <div className="space-y-4">
                 {state.orders.map((order) => (
-                  <div key={order.id} className="p-6 bg-gradient-to-b from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl hover:border-white/20 transition-all">
+                  <div key={order.id} className="p-6 bg-blackb white/[0.06] white/[0.02] border border-white/10 rounded-sm hover:border-white/20 transition-all">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
@@ -711,7 +803,7 @@ const AdminPanel = () => {
                         <p className="text-xs text-white/30 mt-1">{order.date}</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-red-400 bg-clip-text text-transparent">
+                        <div className="text-2xl font-bold text-gold">
                           ${order.total.toFixed(2)}
                         </div>
                         <select
@@ -735,6 +827,101 @@ const AdminPanel = () => {
           </div>
         )}
 
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* STAFF TAB                                                          */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'staff' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Staff Invitations</h3>
+              <button
+                onClick={handleGenerateInvite}
+                disabled={isGenerating}
+                className="flex items-center space-x-2 px-4 py-2.5 bg-black rounded-xl text-white text-sm font-medium hover:bg-black/90 transition-all disabled:opacity-50"
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <span>Generate Invite Link</span>
+              </button>
+            </div>
+
+            <div className="bg-black border border-white/10 rounded-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      {['Token', 'Status', 'Generated By', 'Used By', 'Actions'].map((h) => (
+                        <th key={h} className="text-left text-xs font-medium text-white/40 uppercase tracking-wider px-6 py-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invitations.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="px-6 py-8 text-center text-white/30 text-sm">
+                          No invitations generated yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      invitations.map((invite) => (
+                        <tr key={invite.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                          <td className="px-6 py-4">
+                            <code className="text-xs font-mono text-gold bg-gold/10 px-2 py-1 rounded">
+                              {invite.token}
+                            </code>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              invite.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white/40'
+                            }`}>
+                              {invite.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-white/80">{invite.generatedByEmail}</span>
+                              <span className="text-[10px] text-white/40">{invite.generatedLocation}</span>
+                              <span className="text-[10px] text-white/40 mt-0.5">
+                                {invite.createdAt?.toDate ? invite.createdAt.toDate().toLocaleString() : 'N/A'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {invite.status === 'used' ? (
+                              <div className="flex flex-col">
+                                <span className="text-xs text-white/80">{invite.usedByEmail}</span>
+                                <span className="text-[10px] text-white/40">{invite.usedLocation}</span>
+                                <span className="text-[10px] text-white/40 mt-0.5">
+                                  {invite.usedAt?.toDate ? invite.usedAt.toDate().toLocaleString() : 'N/A'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/20">— Pending —</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {invite.status === 'active' && (
+                              <button
+                                onClick={() => {
+                                  const link = `${window.location.origin}${window.location.pathname}?invite=${invite.token}`;
+                                  navigator.clipboard.writeText(link);
+                                  toast.success('Link copied to clipboard!');
+                                }}
+                                className="text-xs text-gold hover:text-white transition-colors underline"
+                              >
+                                Copy Link
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* MESSAGES TAB                                                       */}

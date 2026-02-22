@@ -29,18 +29,18 @@ import {
   // Your original products from products.js — used to pre-populate Firestore
   // on first run so the store doesn't start empty.
   const SEED_PRODUCTS = [
-    { id: '1',  name: 'Elegant Evening Dress',   price: 120, category: 'shoes',   image: '/placeholder.svg', description: 'Perfect for evening occasions.',              rating: 4.6, inStock: true },
-    { id: '2',  name: 'Classic Daily Outfit',     price: 75,  category: 'shoes',   image: '/placeholder.svg', description: 'Comfortable and stylish for everyday use.',   rating: 4.3, inStock: true },
-    { id: '3',  name: 'Chain Strap Bag',          price: 90,  category: 'bags',    image: '/placeholder.svg', description: 'Featuring adjustable chain strap.',           rating: 4.5, inStock: true },
-    { id: '4',  name: 'Italian Leather Shoes',    price: 150, category: 'shoes',   image: '/placeholder.svg', description: 'Crafted from Italian leather.',               rating: 4.8, inStock: true },
-    { id: '5',  name: 'Minimalist Watch',         price: 110, category: 'watches', image: '/placeholder.svg', description: 'Clean design with premium finishing.',        rating: 4.4, inStock: true },
-    { id: '6',  name: 'Sport Sneakers',           price: 95,  category: 'shoes',   image: '/placeholder.svg', description: 'Lightweight build and solid grip.',           rating: 4.2, inStock: true },
-    { id: '7',  name: 'Handcrafted Bag',          price: 130, category: 'bags',    image: '/placeholder.svg', description: 'Hand-stitched detailing.',                    rating: 4.7, inStock: true },
-    { id: '8',  name: 'All-Weather Boots',        price: 160, category: 'shoes',   image: '/placeholder.svg', description: 'Waterproof and durable construction.',        rating: 4.6, inStock: true },
-    { id: '9',  name: 'Leather Wallet',           price: 40,  category: 'bags',    image: '/placeholder.svg', description: 'Compact storage with premium feel.',          rating: 4.1, inStock: true },
-    { id: '10', name: 'Diver Watch Pro',          price: 220, category: 'watches', image: '/placeholder.svg', description: '300m water resistance with luminous dial.',   rating: 4.9, inStock: true },
-    { id: '11', name: 'Smart Watch Lite',         price: 180, category: 'watches', image: '/placeholder.svg', description: 'Daily tracking with a clean interface.',      rating: 4.4, inStock: true },
-    { id: '12', name: 'Smart Watch Titanium',     price: 320, category: 'watches', image: '/placeholder.svg', description: 'Heart rate monitor and titanium case.',       rating: 4.8, inStock: true },
+    { id: '1',  name: 'Midnight Aura',          price: 185, category: 'signature', image: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&auto=format&fit=crop', description: 'Deep oud and mysterious spices for the bold.', rating: 4.9, inStock: true },
+    { id: '2',  name: 'Noir Essence',           price: 210, category: 'signature', image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&auto=format&fit=crop', description: 'Velvet rose mixed with dark chocolate and amber.', rating: 4.8, inStock: true },
+    { id: '3',  name: 'Golden Santal',          price: 165, category: 'signature', image: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&auto=format&fit=crop', description: 'Smooth sandalwood with a touch of gold foil luxury.', rating: 4.7, inStock: true },
+    { id: '4',  name: 'Velvet Oud',             price: 245, category: 'oud',       image: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=800&auto=format&fit=crop', description: 'The purest agarwood from the heart of the Orient.', rating: 4.9, inStock: true },
+    { id: '5',  name: 'Royal Amber',            price: 195, category: 'oud',       image: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&auto=format&fit=crop', description: 'Majestic amber notes with a hint of smoky vanilla.', rating: 4.8, inStock: true },
+    { id: '6',  name: 'Mystic Musk',            price: 175, category: 'oud',       image: 'https://images.unsplash.com/photo-1582211594533-268f4f1edcb9?w=800&auto=format&fit=crop', description: 'A hauntingly beautiful white musk for the modern aura.', rating: 4.6, inStock: true },
+    { id: '7',  name: 'Blossom Noir',           price: 155, category: 'floral',    image: 'https://images.unsplash.com/photo-1585232356846-530231c784b3?w=800&auto=format&fit=crop', description: 'Night-blooming jasmine and dark patchouli fusion.', rating: 4.5, inStock: true },
+    { id: '8',  name: 'Silk Peony',             price: 140, category: 'floral',    image: 'https://images.unsplash.com/photo-1547887538-e3a2f32cb1cc?w=800&auto=format&fit=crop', description: 'Delicate peonies wrapped in a soft silk shroud.', rating: 4.4, inStock: true },
+    { id: '9',  name: 'Midnight Garden',        price: 180, category: 'floral',    image: 'https://images.unsplash.com/photo-1563170351-be82bc888bb4?w=800&auto=format&fit=crop', description: 'A lush garden captured at the stroke of midnight.', rating: 4.7, inStock: true },
+    { id: '10', name: 'Desert Rose',            price: 220, category: 'oud',       image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&auto=format&fit=crop', description: 'A resilient rose blooming amidst warm desert sands.', rating: 4.9, inStock: true },
+    { id: '11', name: 'Citrus Gold',            price: 130, category: 'floral',    image: 'https://images.unsplash.com/photo-1615484477778-ca3b77940c25?w=800&auto=format&fit=crop', description: 'Bright bergamot and neroli for a golden glow.', rating: 4.3, inStock: true },
+    { id: '12', name: 'Imperial Leather',       price: 275, category: 'signature', image: 'https://images.unsplash.com/photo-1557170334-a7c3c467b1f1?w=800&auto=format&fit=crop', description: 'The scent of a king. Rare leather and vintage iris.', rating: 5.0, inStock: true },
   ];
   
   // ─── FETCH ALL PRODUCTS ───────────────────────────────────────────────────────
@@ -157,8 +157,8 @@ import {
   // Categories are fixed for now. When the admin adds a product with a new
   // category name it will appear in filters automatically via the products data.
   export const categories = [
-    { id: 'all',     name: 'All',     icon: 'all'     },
-    { id: 'bags',    name: 'Bags',    icon: 'bags'    },
-    { id: 'shoes',   name: 'Shoes',   icon: 'shoes'   },
-    { id: 'watches', name: 'Watches', icon: 'watches' },
+    { id: 'all',       name: 'All',           icon: 'all'       },
+    { id: 'signature', name: 'Signature',     icon: 'signature' },
+    { id: 'oud',       name: 'Oud & Oriental', icon: 'oud'       },
+    { id: 'floral',    name: 'Floral & Fresh', icon: 'floral'    },
   ];

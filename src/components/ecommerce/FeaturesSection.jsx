@@ -11,34 +11,34 @@ import { Truck, Shield, RotateCcw, Headphones } from 'lucide-react';
 const features = [
   {
     icon: <Truck className="w-6 h-6" />,
-    title: 'Free Shipping',
-    description: 'Free delivery on orders over $100',
+    title: 'Global Delivery',
+    description: 'Bespoke shipping for refined fragrances',
   },
   {
     icon: <Shield className="w-6 h-6" />,
-    title: 'Secure Payment',
-    description: 'Your payment information is safe with us',
+    title: 'Authenticity',
+    description: '100% genuine world-class ingredients',
   },
   {
     icon: <RotateCcw className="w-6 h-6" />,
-    title: 'Easy Returns',
-    description: '30-day return policy, no questions asked',
+    title: 'Exquisite Care',
+    description: 'Premium packaging for every essence',
   },
   {
     icon: <Headphones className="w-6 h-6" />,
-    title: '24/7 Support',
-    description: 'Dedicated customer support anytime you need',
+    title: 'Personal Stylist',
+    description: 'Dedicated scent consulting available 24/7',
   },
 ];
 
 const FeaturesSection = () => {
   return (
-    <section className="py-16 border-t border-b border-white/5">
+    <section id="features" className="py-16 border-t border-b border-white/5 scroll-mt-20 lg:scroll-mt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, i) => (
             <div key={i} className="text-center group">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500/20 to-red-500/20 border border-pink-500/20 text-pink-400 mb-4 group-hover:scale-110 group-hover:border-pink-500/40 transition-all duration-300">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-sm bg-black border border-gold text-gold mb-4 group-hover:scale-110 transition-all duration-300">
                 {feature.icon}
               </div>
               <h3 className="text-white font-semibold mb-2">{feature.title}</h3>

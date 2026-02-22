@@ -34,7 +34,7 @@ const testimonials = [
 
 const TestimonialsSection = () => {
   return (
-    <section className="py-16 lg:py-24 relative overflow-hidden">
+    <section id="testimonials" className="py-16 lg:py-24 relative overflow-hidden scroll-mt-20 lg:scroll-mt-24">
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-pink-500/5 rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl" />
 
@@ -42,7 +42,7 @@ const TestimonialsSection = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             What Our{' '}
-            <span className="bg-gradient-to-r from-pink-400 via-red-400 to-rose-300 bg-clip-text text-transparent">
+            <span className="text-gold">
               Customers Say
             </span>
           </h2>
@@ -53,7 +53,7 @@ const TestimonialsSection = () => {
           {testimonials.map((testimonial, i) => (
             <div
               key={i}
-              className="relative p-6 bg-gradient-to-b from-white/[0.08] to-white/[0.02] border border-white/10 rounded-2xl hover:border-pink-500/20 transition-all duration-300"
+              className="relative p-6 bg-white/[0.02] border border-white/10 rounded-sm hover:border-gold/20 transition-all duration-300"
             >
               <Quote className="w-8 h-8 text-pink-500/20 mb-4" />
               <div className="flex items-center gap-1 mb-4">
@@ -61,9 +61,9 @@ const TestimonialsSection = () => {
                   <Star key={j} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                 ))}
               </div>
-              <p className="text-white/60 text-sm leading-relaxed mb-6">"{testimonial.text}"</p>
+              <p className="text-white/60 text-sm leading-relaxed mb-6">&quot;{testimonial.text}&quot;</p>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center text-white text-sm font-bold">
+                <div className="w-10 h-10 rounded-full bg-black border border-gold flex items-center justify-center text-white text-sm font-bold">
                   {testimonial.initials}
                 </div>
                 <div>

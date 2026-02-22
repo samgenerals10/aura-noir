@@ -5,53 +5,118 @@
  * - Runtime logic is unchanged; UI/Tailwind classes should render exactly the same.
  * - Read the inline comments around state, effects, handlers, and data flow.
  */
-import React from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { ArrowRight, Sparkles, Quote } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+
+// ── SCENT NARRATIVES ──────────────────────────────────────────────────────
+const NARRATIVES = [
+  "Perfume makes silence talk.",
+  "Your scent is your soul's signature.",
+  "The unseen, unforgettable accessory.",
+  "Fragrance is the first layer of dressing.",
+  "Define your essence, find your aura."
+];
 
 const Hero = () => {
   const { dispatch } = useStore();
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 1.5;
+    }
+  }, []);
+
+  const [currentNarrative, setCurrentNarrative] = useState(0);
+  const [displayText, setDisplayText]   = useState('');
+  const [isTyping, setIsTyping]       = useState(true);
+
+  useEffect(() => {
+    let timer;
+    if (isTyping) {
+      if (displayText.length < NARRATIVES[currentNarrative].length) {
+        timer = setTimeout(() => {
+          setDisplayText(NARRATIVES[currentNarrative].slice(0, displayText.length + 1));
+        }, 50);
+      } else {
+        timer = setTimeout(() => setIsTyping(false), 3000); // Hold for 3s
+      }
+    } else {
+      if (displayText.length > 0) {
+        timer = setTimeout(() => {
+          setDisplayText(displayText.slice(0, displayText.length - 1));
+        }, 30);
+      } else {
+        setCurrentNarrative((prev) => (prev + 1) % NARRATIVES.length);
+        setIsTyping(true);
+      }
+    }
+    return () => clearTimeout(timer);
+  }, [displayText, isTyping, currentNarrative]);
 
   return (
     <section className="relative overflow-hidden">
       {/* Background Image with Gradient Overlay */}
       <div className="absolute inset-0">
-        <img
-          src="https://images.unsplash.com/photo-1748480959274-9d1b0db69c03?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fHBlcmZ1bWVzJTIwYmFubmVyfGVufDB8fDB8fHww"
-          alt="Hero"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-900/30 via-transparent to-red-900/20" />
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover animate-luxury-flow"
+        >
+          <source src="https://videos.pexels.com/video-files/33233525/14160276_2560_1440_25fps.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-black/50" />
       </div>
 
       {/* Decorative Elements */}
-      <div className="absolute top-20 right-20 w-72 h-72 bg-pink-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-10 left-10 w-96 h-96 bg-red-500/10 rounded-full blur-3xl" />
+      <div className="absolute top-20 right-20 w-72 h-72 bg-gold/5 rounded-full blur-3xl opacity-50" />
+      <div className="absolute bottom-10 left-10 w-96 h-96 bg-gold/5 rounded-full blur-3xl opacity-30" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-40">
         <div className="max-w-2xl">
           {/* Badge */}
-          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-8">
-            <Sparkles className="w-4 h-4 text-pink-400" />
-            <span className="text-sm text-white/90 font-medium">New Collection 2026</span>
+          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-md border border-white/10 mb-8">
+            <Sparkles className="w-4 h-4 text-gold" />
+            <span className="text-sm text-white/90 font-medium tracking-wide uppercase">New Collection 2026</span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6">
-            <span className="text-white">Redefine</span>
+          <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold leading-tight mb-6">
+            <span className="text-white">Find Your</span>
             <br />
-            <span className="bg-gradient-to-r from-pink-400 via-red-400 to-rose-300 bg-clip-text text-transparent">
-              Your Style
+            <span className="text-gold">
+              Aura
             </span>
           </h1>
 
           {/* Subtext */}
-          <p className="text-lg sm:text-xl text-white/60 mb-10 leading-relaxed max-w-lg">
-            Discover curated luxury fashion pieces that blend timeless elegance with modern design. 
-            Premium quality, delivered to your doorstep.
+          <p className="text-lg sm:text-xl text-white/60 mb-8 leading-relaxed max-w-lg">
+            Discover our world-class fragrance collection, crafted for those who define their own essence.
+            Premium scents, delivered with luxury in mind.
           </p>
+
+          {/* Scent Narrative — Typewriter Effect */}
+          <div className="h-16 mb-10 flex items-start space-x-3">
+            <div className="mt-1 p-1 rounded-sm bg-black border border-gold/30">
+              <Quote className="w-4 h-4 text-gold" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xl font-medium text-white italic tracking-wide">
+                {displayText}
+                <span className="inline-block w-1.5 h-6 ml-1 bg-gold animate-pulse align-middle" />
+              </p>
+              <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] mt-2 font-bold">
+                Scent Narrative
+              </p>
+            </div>
+          </div>
+
+          
+
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -60,19 +125,29 @@ const Hero = () => {
                 dispatch({ type: 'SET_CATEGORY', category: null });
                 document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="group inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-pink-500 via-red-500 to-rose-500 rounded-xl text-white font-semibold text-lg hover:from-pink-600 hover:via-red-600 hover:to-rose-600 transition-all shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              className="group inline-flex items-center justify-center px-8 py-4 bg-black rounded-sm text-white font-semibold text-lg hover:bg-black/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               Shop Now
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <button
               onClick={() => {
-                dispatch({ type: 'SET_CATEGORY', category: 'watches' });
+                dispatch({ type: 'SET_CATEGORY', category: 'all' });
                 document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="inline-flex items-center justify-center px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white font-semibold text-lg hover:bg-white/20 hover:border-white/30 transition-all"
+              className="group inline-flex items-center justify-center px-8 py-4 bg-black rounded-sm text-white font-semibold text-lg hover:bg-black/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              View Watches
+              Shop Collection
+              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button
+              onClick={() => {
+                dispatch({ type: 'SET_CATEGORY', category: 'signature' });
+                document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="inline-flex items-center justify-center px-8 py-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-sm text-white font-semibold text-lg hover:bg-white/10 hover:border-gold/30 transition-all active:scale-[0.98]"
+            >
+              Signature Scents
             </button>
           </div>
 

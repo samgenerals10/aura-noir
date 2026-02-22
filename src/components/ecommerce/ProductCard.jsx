@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { Heart, ShoppingCart, Star, Share2, Eye } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { buildWhatsAppURL } from '@/config/adminContact';
 import { toast } from 'sonner';
 
 const ProductCard = ({ product, onViewDetails }) => {
@@ -32,8 +33,8 @@ const ProductCard = ({ product, onViewDetails }) => {
 
   const shareOnWhatsApp = (e) => {
     e.stopPropagation();
-    const text = `Check out ${product.name} for $${product.price} at LUXESTORE`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    const url = buildWhatsAppURL({ product, currency: 'USD' });
+    window.open(url, '_blank');
     setShowShare(false);
   };
 
@@ -46,17 +47,17 @@ const ProductCard = ({ product, onViewDetails }) => {
 
   return (
     <div
-      className="group relative bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:border-pink-500/30 transition-all duration-500 hover:shadow-2xl hover:shadow-pink-500/10 hover:-translate-y-1 cursor-pointer"
+      className="group relative bg-white/[0.02] backdrop-blur-sm border border-white/10 rounded-sm overflow-hidden hover:border-gold/30 transition-all duration-500 hover:-translate-y-1 cursor-pointer"
       onClick={() => onViewDetails(product)}
     >
       {/* Image Container */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-900 to-black">
+      <div className="relative aspect-square overflow-hidden bg-black">
         <img
           src={product.image}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Out of Stock Badge */}
         {!product.inStock && (
@@ -71,7 +72,7 @@ const ProductCard = ({ product, onViewDetails }) => {
             onClick={handleToggleLike}
             className={`p-2.5 rounded-xl backdrop-blur-sm border transition-all duration-300 ${
               isLiked
-                ? 'bg-pink-500/90 border-pink-400 text-white shadow-lg shadow-pink-500/30'
+                ? 'bg-pink-500 border-pink-400 text-white'
                 : 'bg-black/40 border-white/20 text-white hover:bg-pink-500/50 hover:border-pink-400/50'
             }`}
           >
@@ -150,7 +151,7 @@ const ProductCard = ({ product, onViewDetails }) => {
         <p className="text-white/40 text-xs mb-3 line-clamp-1">{product.description}</p>
 
         <div className="flex items-center justify-between">
-          <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-red-400 bg-clip-text text-transparent">
+          <span className="text-lg font-bold text-gold">
             ${product.price.toFixed(2)}
           </span>
           <button
@@ -158,7 +159,7 @@ const ProductCard = ({ product, onViewDetails }) => {
             disabled={!product.inStock}
             className={`p-2.5 rounded-xl transition-all duration-300 ${
               product.inStock
-                ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white hover:from-pink-600 hover:to-red-600 shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 hover:scale-105 active:scale-95'
+                ? 'bg-black text-white hover:bg-black/90 hover:scale-105 active:scale-95'
                 : 'bg-white/5 text-white/30 cursor-not-allowed'
             }`}
           >

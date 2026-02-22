@@ -7,14 +7,14 @@
 export const ADMIN_CONTACT = {
     // WhatsApp number with country code — no spaces, dashes or plus sign
     // +233266417755 → 233266417755
-    whatsapp: '233266417755',
+    whatsapp: '233547795721',
   
     // Instagram username without the @ symbol
     instagram: 'sam_generals',
   };
   
   // ─── WHATSAPP URL BUILDER ─────────────────────────────────────────────────────
-  // Builds a WhatsApp click-to-chat URL with a pre-filled message.
+  // Builds a WhatsApp click-chat URL with a pre-filled message.
   // When clicked, opens WhatsApp with the message already typed in the DM.
   //
   // product → single product object { name, price, image }

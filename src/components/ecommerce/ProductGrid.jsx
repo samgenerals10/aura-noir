@@ -35,6 +35,23 @@ const ProductGrid = () => {
   const [showSort, setShowSort]           = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  // ── DEEP LINKING ──────────────────────────────────────────────────────────
+  // Automatically open product modal if ?p=ID is in URL
+  React.useEffect(() => {
+    if (!state.productsLoading && state.products.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const productId = urlParams.get('p');
+      if (productId) {
+        const product = state.products.find(p => p.id === productId);
+        if (product) {
+          setSelectedProduct(product);
+          // Clear URL param after opening to avoid re-opening on refresh
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    }
+  }, [state.products, state.productsLoading]);
+
   // filteredProducts → derived from state.products (Firestore data)
   // Recalculates when products, category, search, or sort changes
   const filteredProducts = useMemo(() => {
@@ -79,14 +96,14 @@ const ProductGrid = () => {
   ];
 
   return (
-    <section id="products" className="py-16 lg:py-24">
+    <section id="products" className="py-16 lg:py-24 scroll-mt-20 lg:scroll-mt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
             Our{' '}
-            <span className="bg-gradient-to-r from-pink-400 via-red-400 to-rose-300 bg-clip-text text-transparent">
+            <span className="text-gold">
               Collection
             </span>
           </h2>
@@ -100,7 +117,7 @@ const ProductGrid = () => {
         {/* state.productsLoading is set to false once fetchProducts() completes */}
         {state.productsLoading ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
+            <Loader2 className="w-10 h-10 text-gold animate-spin mb-4" />
             <p className="text-white/40 text-sm">Loading products...</p>
           </div>
         ) : (
@@ -116,7 +133,7 @@ const ProductGrid = () => {
                     onClick={() => dispatch({ type: 'SET_CATEGORY', category: cat.id })}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
                       state.selectedCategory === cat.id
-                        ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg shadow-pink-500/25'
+                        ? 'bg-black border border-gold text-white'
                         : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -144,7 +161,7 @@ const ProductGrid = () => {
                         onClick={() => { setSortBy(option.value); setShowSort(false); }}
                         className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition-all ${
                           sortBy === option.value
-                            ? 'bg-gradient-to-r from-pink-500/20 to-red-500/20 text-pink-300'
+                            ? 'bg-black border border-gold text-gold'
                             : 'text-white/60 hover:text-white hover:bg-white/10'
                         }`}
                       >
@@ -185,7 +202,7 @@ const ProductGrid = () => {
                     dispatch({ type: 'SET_CATEGORY', category: 'all' });
                     dispatch({ type: 'SET_SEARCH', query: '' });
                   }}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-xl text-white font-medium hover:from-pink-600 hover:to-red-600 transition-all"
+                  className="px-6 py-3 bg-black rounded-xl text-white font-medium hover:bg-black/90 transition-all"
                 >
                   Clear Filters
                 </button>

@@ -44,6 +44,8 @@ import ProductGrid        from '@/components/ecommerce/ProductGrid';
 import FeaturesSection    from '@/components/ecommerce/FeaturesSection';
 import TestimonialsSection from '@/components/ecommerce/TestimonialsSection';
 import Footer             from '@/components/ecommerce/Footer';
+import AboutSection        from '@/components/ecommerce/AboutSection';
+import ContactSection      from '@/components/ecommerce/ContactSection';
 import CartDrawer         from '@/components/ecommerce/CartDrawer';
 import AuthModal          from '@/components/ecommerce/AuthModal';
 import AdminPanel         from '@/components/ecommerce/AdminPanel';
@@ -142,6 +144,13 @@ const AppLayout = () => {
     loadProducts(); // call the async function
   }, []); // [] → only run once on mount
 
+  // ── SCROLL TO TOP ON VIEW/CATEGORY CHANGE ────────────────────────────────
+  // Ensures that whenever the user clicks a category or switches pages,
+  // the view resets to the top of the viewport.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [state.currentView]);
+
 
   // ── COMPUTED VALUES ──────────────────────────────────────────────────────
   // useMemo caches computed values and only recalculates when dependencies change.
@@ -186,18 +195,18 @@ const AppLayout = () => {
             - 'wishlist' → Wishlist page
             - Otherwise → main shop page */}
         {state.currentView === 'admin' && state.user?.role === 'admin' ? (
-          // Admin dashboard — only accessible to admin users
-          // The ?. (optional chaining) prevents crash if state.user is null
           <AdminPanel />
         ) : state.currentView === 'wishlist' ? (
-          // Wishlist page — shows all liked products
           <Wishlist />
+        ) : state.currentView === 'about' ? (
+          <AboutSection />
+        ) : state.currentView === 'contact' ? (
+          <ContactSection />
         ) : (
-          // Main shop page — what customers see
           <main>
             <Hero />
             <CategoriesSection />
-            <ProductGrid />       {/* now reads from state.products (Firestore) */}
+            <ProductGrid />
             <FeaturesSection />
             <TestimonialsSection />
           </main>

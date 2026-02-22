@@ -6,14 +6,33 @@
  * - Read the inline comments around state, effects, handlers, and data flow.
  */
 import React, { useState } from 'react';
-import { X, Heart, ShoppingCart, Star, Minus, Plus, Share2 } from 'lucide-react';
+import { X, Heart, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { buildWhatsAppURL } from '@/config/adminContact';
 import { toast } from 'sonner';
 
 const ProductModal = ({ product, onClose }) => {
   const { state, dispatch } = useStore();
   const [quantity, setQuantity] = useState(1);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const isLiked = state.likes.includes(product.id);
+
+  // Combine all media for the carousel
+  const media = [
+    { type: 'image', url: product.image },
+    ...(Array.isArray(product.images) ? product.images.map(url => ({ type: 'image', url })) : []),
+    ...(product.videoUrl ? [{ type: 'video', url: product.videoUrl }] : [])
+  ].filter(m => m.url);
+
+  const nextMedia = (e) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev + 1) % media.length);
+  };
+
+  const prevMedia = (e) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev - 1 + media.length) % media.length);
+  };
 
   const handleAddToCart = () => {
     if (!product.inStock) return;
@@ -25,20 +44,19 @@ const ProductModal = ({ product, onClose }) => {
   };
 
   const shareOnWhatsApp = () => {
-    const text = `Check out ${product.name} for $${product.price} at LUXESTORE`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    const url = buildWhatsAppURL({ product, currency: 'USD' });
+    window.open(url, '_blank');
   };
 
   const shareOnInstagram = () => {
-    window.open('https://www.instagram.com/', '_blank');
-    toast.info('Share this product on your Instagram story');
+    window.open('https://www.instagram.com/aura_noir_perfumes/', '_blank');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-3xl bg-gradient-to-b from-gray-900 to-black border border-white/10 rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-3xl bg-black border border-white/10 rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
@@ -50,15 +68,68 @@ const ProductModal = ({ product, onClose }) => {
         </button>
 
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* Image */}
-          <div className="relative aspect-square bg-gradient-to-br from-gray-900 to-black">
-            <img
-              src={product.image}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
+          {/* Media Carousel */}
+          <div className="relative aspect-square bg-[#0b0b0b] flex items-center justify-center overflow-hidden">
+            {media.length > 0 && (
+              <>
+                {media[currentIndex].type === 'video' ? (
+                  <div className="w-full h-full relative group/video">
+                    <video
+                      src={media[currentIndex].url}
+                      className="w-full h-full object-cover"
+                      controls
+                      autoPlay
+                      muted
+                      loop
+                    />
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover/video:opacity-100 transition-opacity">
+                      <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center">
+                        <Play className="w-8 h-8 text-white fill-current" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={media[currentIndex].url}
+                    alt={`${product.name} - ${currentIndex + 1}`}
+                    className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-500"
+                  />
+                )}
+
+                {/* Carousel Navigation */}
+                {media.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevMedia}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all shadow-xl"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={nextMedia}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all shadow-xl"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+
+                    {/* Indicators */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {media.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                            i === currentIndex ? 'bg-gold w-4' : 'bg-white/30'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
             {!product.inStock && (
-              <div className="absolute top-4 left-4 px-4 py-2 bg-black/80 backdrop-blur-sm rounded-full text-sm text-white/80 font-medium border border-white/20">
+              <div className="absolute top-4 left-4 px-4 py-2 bg-black/80 backdrop-blur-sm rounded-full text-sm text-white/80 font-medium border border-white/20 z-10">
                 Out of Stock
               </div>
             )}
@@ -88,7 +159,7 @@ const ProductModal = ({ product, onClose }) => {
 
             <p className="text-white/50 text-sm leading-relaxed mb-6">{product.description}</p>
 
-            <div className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-red-400 bg-clip-text text-transparent mb-6">
+            <div className="text-3xl font-bold text-gold mb-6">
               ${product.price.toFixed(2)}
             </div>
 
@@ -123,7 +194,7 @@ const ProductModal = ({ product, onClose }) => {
                 disabled={!product.inStock}
                 className={`flex-1 flex items-center justify-center space-x-2 py-3.5 rounded-xl font-semibold transition-all ${
                   product.inStock
-                    ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white hover:from-pink-600 hover:to-red-600 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40'
+                    ? 'bg-black text-white hover:bg-black/90'
                     : 'bg-white/5 text-white/30 cursor-not-allowed'
                 }`}
               >
