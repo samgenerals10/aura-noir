@@ -356,7 +356,7 @@ const ChatBubble = () => {
     );
   };
   
-  if (!state.user) return null;
+  const isGuest = !state.user;
   
   return (
     <>
@@ -596,7 +596,7 @@ const ChatBubble = () => {
                   <div className="flex-1">
                     <input
                       type="text"
-                      placeholder="Type a message"
+                      placeholder={isGuest ? "Sign in to send messages" : "Type a message"}
                       value={messageText}
                       onChange={(e) => { setMessageText(e.target.value); handleTyping(); }}
                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -606,7 +606,7 @@ const ChatBubble = () => {
 
                   <button
                     onClick={handleSendMessage}
-                    disabled={isSending || (!messageText.trim() && !imageUrl && !fileUrl)}
+                    disabled={isGuest || isSending || (!messageText.trim() && !imageUrl && !fileUrl)}
                     className="p-3 bg-gold rounded-full text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                   >
                     {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
