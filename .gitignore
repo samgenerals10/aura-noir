@@ -26,4 +26,4 @@ dist-ssr
 # Environment variables - never commit these
 .env
 .env.local
-.env.production
+.env.production.env
